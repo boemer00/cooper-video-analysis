@@ -1,13 +1,17 @@
 """Pipeline using AssemblyAI for video sentiment and emotion analysis."""
 import os
+import logging
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 import tempfile
 from dataclasses import dataclass
 
 from .preprocessing import extract_audio, AssemblyAIAnalyzer
-from .inference import TextSentimentAnalyzer
 from .visualization import Visualizer, TimelineData
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 @dataclass
 class AnalysisResults:
@@ -24,18 +28,16 @@ class AssemblyAIPipeline:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        sentiment_model: str = "distilbert-base-uncased-finetuned-sst-2-english"
     ):
         """
         Initialize the AssemblyAI pipeline.
 
         Args:
             api_key: AssemblyAI API key (optional, will use env var if not provided)
-            sentiment_model: Model name for text sentiment analysis (backup)
         """
+        logger.info("Initializing AssemblyAI pipeline")
         self.assemblyai_analyzer = AssemblyAIAnalyzer(api_key=api_key)
-        # We still keep the text analyzer as backup
-        self.text_analyzer = TextSentimentAnalyzer(model_name=sentiment_model)
+        # Remove the text analyzer backup
         self.visualizer = Visualizer()
 
     def analyze(
@@ -64,18 +66,31 @@ class AssemblyAIPipeline:
         else:
             os.makedirs(output_dir, exist_ok=True)
 
+        logger.info(f"Analysis output directory: {output_dir}")
+
         # Extract audio from video
-        print("Extracting audio from video...")
+        logger.info("Extracting audio from video...")
         audio_path = extract_audio(video_path, output_dir)
+        logger.info(f"Audio extracted to: {audio_path}")
 
         # Use AssemblyAI for both transcription and emotion analysis
-        print("Analyzing with AssemblyAI...")
-        full_text, segments, text_sentiment_results, audio_emotion_results = (
-            self.assemblyai_analyzer.analyze_audio_combined(str(audio_path))
-        )
+        logger.info("Analyzing with AssemblyAI...")
+        try:
+            full_text, segments, text_sentiment_results, audio_emotion_results = (
+                self.assemblyai_analyzer.analyze_audio_combined(str(audio_path))
+            )
+            logger.info(f"AssemblyAI analysis complete: {len(segments)} segments processed")
+        except Exception as e:
+            logger.error(f"AssemblyAI analysis failed: {str(e)}")
+            # Provide minimal fallback results if analysis fails
+            full_text = "Analysis failed"
+            segments = [{"text": "Analysis failed", "start": 0, "end": 0}]
+            text_sentiment_results = [(0, {"positive": 0.5, "negative": 0.5})]
+            audio_emotion_results = [(0, {"neutral": 1.0, "happy": 0.0, "sad": 0.0, "angry": 0.0})]
+            logger.warning("Using fallback neutral results due to analysis failure")
 
         # Fuse results
-        print("Fusing results...")
+        logger.info("Fusing results...")
         timeline_data = self.visualizer.fuse_results(
             text_sentiment_results,
             audio_emotion_results,
@@ -104,6 +119,9 @@ class AssemblyAIPipeline:
             # Fallback if no audio emotion results
             avg_emotions = {"neutral": 1.0}
 
+        logger.info(f"Text sentiment scores: positive={avg_positive:.2f}, negative={avg_negative:.2f}")
+        logger.info(f"Audio emotion scores: {', '.join([f'{k}={v:.2f}' for k, v in avg_emotions.items()])}")
+
         # Prepare the result object
         results = AnalysisResults(
             text_scores={"positive": avg_positive, "negative": avg_negative},
@@ -113,12 +131,13 @@ class AssemblyAIPipeline:
 
         # Generate plots if requested
         if generate_plots:
-            print("Generating plots...")
+            logger.info("Generating plots...")
             # Timeline plot
             if save_plots:
                 timeline_path = os.path.join(output_dir, "timeline_plot.png")
                 self.visualizer.plot_sentiment_vs_emotion(timeline_data, timeline_path)
                 results.timeline_plot_bytes = None
+                logger.info(f"Timeline plot saved to: {timeline_path}")
             else:
                 results.timeline_plot_bytes = self.visualizer.plot_sentiment_vs_emotion(timeline_data)
 
@@ -127,6 +146,7 @@ class AssemblyAIPipeline:
                 dist_path = os.path.join(output_dir, "distribution_plot.png")
                 self.visualizer.plot_emotion_distribution(timeline_data, dist_path)
                 results.dist_plot_bytes = None
+                logger.info(f"Distribution plot saved to: {dist_path}")
             else:
                 results.dist_plot_bytes = self.visualizer.plot_emotion_distribution(timeline_data)
 
@@ -145,5 +165,6 @@ def analyze_with_assemblyai(video_path: str, output_dir: Optional[str] = None, a
     Returns:
         AnalysisResults: Results of the analysis
     """
+    logger.info(f"Starting analysis of video: {video_path}")
     pipeline = AssemblyAIPipeline(api_key=api_key)
     return pipeline.analyze(video_path, output_dir, save_plots=True)

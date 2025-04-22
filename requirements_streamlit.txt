@@ -1,0 +1,7 @@
+moviepy==1.0.3
+numpy==1.26.4
+matplotlib==3.8.2
+assemblyai==0.17.0
+python-dotenv==1.0.0
+streamlit==1.44.1
+watchdog==4.0.0
