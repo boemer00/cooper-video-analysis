@@ -8,6 +8,10 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from src.pipeline_assemblyai import analyze_with_assemblyai
 
@@ -32,7 +36,7 @@ def main():
         "--api-key",
         "-k",
         type=str,
-        help="AssemblyAI API key (if not provided, uses ASSEMBLYAI_API_KEY env var)"
+        help="AssemblyAI API key (if not provided, uses ASSEMBLYAI_API_KEY from .env)"
     )
 
     args = parser.parse_args()
@@ -47,7 +51,7 @@ def main():
     api_key = args.api_key or os.getenv("ASSEMBLYAI_API_KEY")
     if not api_key:
         print("Error: AssemblyAI API key not provided.")
-        print("Either use --api-key option or set ASSEMBLYAI_API_KEY environment variable.")
+        print("Either use --api-key option or set ASSEMBLYAI_API_KEY in .env file.")
         sys.exit(1)
 
     # Create output directory if it doesn't exist

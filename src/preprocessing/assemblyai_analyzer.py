@@ -4,6 +4,10 @@ import time
 from typing import Dict, List, Tuple, Optional
 import assemblyai as aai
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class AssemblyAIAnalyzer:
     """Analyzes audio files using AssemblyAI API for transcription and emotion."""
@@ -21,7 +25,7 @@ class AssemblyAIAnalyzer:
         if not self.api_key:
             raise ValueError(
                 "AssemblyAI API key not provided. Either pass it as an argument or "
-                "set the ASSEMBLYAI_API_KEY environment variable."
+                "set the ASSEMBLYAI_API_KEY environment variable in .env file."
             )
 
         # Initialize AssemblyAI client

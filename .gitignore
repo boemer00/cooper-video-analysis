@@ -80,6 +80,8 @@ celerybeat-schedule
 
 # Environments
 .env
+.env.*
+!.env.example
 .venv
 env/
 venv/
@@ -111,6 +113,7 @@ coop/
 # Project specific
 test_output/
 output/
+output_assemblyai/
 *.wav
 *.mp3
 *.mp4
