@@ -114,13 +114,16 @@ coop/
 test_output/
 output/
 output_assemblyai/
+streamlit_output/
 *.wav
 *.mp3
 *.mp4
 *.mov
 *.avi
 *.mkv
+# PNG files in static assets are allowed, all others excluded
 *.png
+!/static/assets/*.png
 /tmp/
 
 # Models - large files
