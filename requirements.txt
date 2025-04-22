@@ -1,0 +1,11 @@
+moviepy>=1.0.3
+openai-whisper>=20231117
+transformers>=4.38.2
+torch>=2.2.1
+soundfile>=0.12.1
+numpy>=1.26.4
+matplotlib>=3.8.2
+fastapi>=0.109.2
+uvicorn>=0.27.1
+python-multipart>=0.0.7
+pydantic>=2.6.1

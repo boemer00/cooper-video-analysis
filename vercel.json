@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/analyze.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/", "dest": "api/analyze.py" },
+    { "src": "/analyze", "dest": "api/analyze.py" }
+  ],
+  "functions": {
+    "api/analyze.py": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
+}
