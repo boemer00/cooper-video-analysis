@@ -49,7 +49,7 @@ async def analyze_video(file: UploadFile = File(...)):
             pipeline = Pipeline(
                 whisper_model="base",  # Using smaller models for serverless function
                 sentiment_model="distilbert-base-uncased-finetuned-sst-2-english",
-                emotion_model="r-f/wav2vec-english-speech-emotion-recognition"
+                emotion_model="ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition"
             )
 
             # Analyze the video
