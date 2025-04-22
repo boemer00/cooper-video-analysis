@@ -2,7 +2,7 @@
 """
 Cooper Video Analysis - Streamlit App
 
-A web interface for the Cooper Video Analysis tool that analyzes videos for sentiment and emotion.
+A web interface for the Cooper Video Analysis tool that analyzes videos for sentiment and emotion using AssemblyAI.
 """
 import os
 import sys
@@ -19,8 +19,7 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Import analysis functions
-from src.pipeline import analyze
+# Import analysis function
 from src.pipeline_assemblyai import analyze_with_assemblyai
 
 # Set page configuration
@@ -44,27 +43,19 @@ def main():
     # Sidebar for options
     st.sidebar.title("Analysis Options")
 
-    # Analysis model selection
-    analysis_model = st.sidebar.radio(
-        "Select Analysis Model",
-        ["Standard (Wav2Vec2)", "AssemblyAI"],
-        index=0,
-    )
+    # Get AssemblyAI API key
+    api_key = os.getenv("ASSEMBLYAI_API_KEY")
 
-    # Check for AssemblyAI API key if that model is selected
-    api_key = None
-    if analysis_model == "AssemblyAI":
-        api_key = os.getenv("ASSEMBLYAI_API_KEY")
+    if not api_key:
+        api_key = st.sidebar.text_input(
+            "AssemblyAI API Key",
+            type="password",
+            help="Enter your AssemblyAI API key. You can get one at https://www.assemblyai.com/"
+        )
 
         if not api_key:
-            api_key = st.sidebar.text_input(
-                "AssemblyAI API Key",
-                type="password",
-                help="Enter your AssemblyAI API key. You can get one at https://www.assemblyai.com/"
-            )
-
-            if not api_key:
-                st.sidebar.error("AssemblyAI API key is required for this model.")
+            st.error("AssemblyAI API key is required. Please enter it in the sidebar.")
+            st.stop()
 
     # Output directory selection
     output_name = st.sidebar.text_input(
@@ -106,22 +97,22 @@ def main():
         # Analysis button
         if st.button("Analyze Video"):
             # Show spinner during analysis
-            with st.spinner("Analyzing video, please wait..."):
+            with st.spinner("Analyzing video with AssemblyAI, please wait..."):
                 try:
-                    if analysis_model == "Standard (Wav2Vec2)":
-                        # Use standard model
-                        st.info("Using Standard (Wav2Vec2) model for analysis...")
-                        logger.info("Starting analysis with Standard model")
-                        results = analyze(video_path, str(output_dir))
-                    else:
-                        # Use AssemblyAI model
-                        st.info("Using AssemblyAI model for analysis...")
-                        logger.info("Starting analysis with AssemblyAI model")
-                        results = analyze_with_assemblyai(
-                            video_path,
-                            str(output_dir),
-                            api_key=api_key
-                        )
+                    # Use AssemblyAI model
+                    logger.info("Starting analysis with AssemblyAI model")
+
+                    # Test API key validity
+                    if not api_key or len(api_key) < 10:
+                        st.error("Invalid AssemblyAI API key. Please check your API key and try again.")
+                        logger.error("Invalid API key format")
+                        st.stop()
+
+                    results = analyze_with_assemblyai(
+                        video_path,
+                        str(output_dir),
+                        api_key=api_key
+                    )
 
                     # Log the results for debugging
                     if show_debug:
@@ -183,19 +174,8 @@ def main():
                 except Exception as e:
                     logger.error(f"Error removing temporary file: {str(e)}")
     else:
-        # Show sample image and instructions when no file is uploaded
-        st.info("Please upload a video file to analyze.")
-        try:
-            # Try to load from local path first
-            image_path = "static/assets/video_upload.png"
-            if os.path.exists(image_path):
-                st.image(image_path, width=400)
-            else:
-                # Fall back to remote URL if local file is not available
-                st.image("https://img.freepik.com/free-vector/video-upload-concept-illustration_114360-4702.jpg", width=400)
-        except Exception as e:
-            logger.error(f"Error loading image: {str(e)}")
-            # No need to show this error to the user
+        # Show instructions when no file is uploaded
+        st.info("Please upload a video file to analyze using AssemblyAI.")
 
 if __name__ == "__main__":
     try:
