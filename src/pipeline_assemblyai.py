@@ -1,11 +1,11 @@
-"""Main pipeline for video sentiment and emotion analysis."""
+"""Pipeline using AssemblyAI for video sentiment and emotion analysis."""
 import os
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 import tempfile
 from dataclasses import dataclass
 
-from .preprocessing import extract_audio, Transcriber, AudioEmotionAnalyzer
+from .preprocessing import extract_audio, AssemblyAIAnalyzer
 from .inference import TextSentimentAnalyzer
 from .visualization import Visualizer, TimelineData
 
@@ -18,26 +18,24 @@ class AnalysisResults:
     timeline_plot_bytes: Optional[str] = None
     dist_plot_bytes: Optional[str] = None
 
-class Pipeline:
-    """Main pipeline for video sentiment and emotion analysis."""
+class AssemblyAIPipeline:
+    """Pipeline using AssemblyAI for video sentiment and emotion analysis."""
 
     def __init__(
         self,
-        whisper_model: str = "base",
-        sentiment_model: str = "distilbert-base-uncased-finetuned-sst-2-english",
-        emotion_model: str = "ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition"
+        api_key: Optional[str] = None,
+        sentiment_model: str = "distilbert-base-uncased-finetuned-sst-2-english"
     ):
         """
-        Initialize the video analysis pipeline.
+        Initialize the AssemblyAI pipeline.
 
         Args:
-            whisper_model: Model name for Whisper transcription
-            sentiment_model: Model name for text sentiment analysis
-            emotion_model: Model name for audio emotion analysis
+            api_key: AssemblyAI API key (optional, will use env var if not provided)
+            sentiment_model: Model name for text sentiment analysis (backup)
         """
-        self.transcriber = Transcriber(model_name=whisper_model)
+        self.assemblyai_analyzer = AssemblyAIAnalyzer(api_key=api_key)
+        # We still keep the text analyzer as backup
         self.text_analyzer = TextSentimentAnalyzer(model_name=sentiment_model)
-        self.audio_analyzer = AudioEmotionAnalyzer(model_name=emotion_model)
         self.visualizer = Visualizer()
 
     def analyze(
@@ -48,7 +46,7 @@ class Pipeline:
         save_plots: bool = False
     ) -> AnalysisResults:
         """
-        Analyze a video for sentiment and emotion.
+        Analyze a video for sentiment and emotion using AssemblyAI.
 
         Args:
             video_path: Path to the video file
@@ -70,17 +68,11 @@ class Pipeline:
         print("Extracting audio from video...")
         audio_path = extract_audio(video_path, output_dir)
 
-        # Transcribe audio to text
-        print("Transcribing audio to text...")
-        full_text, segments = self.transcriber.transcribe_audio(str(audio_path))
-
-        # Analyze text sentiment
-        print("Analyzing text sentiment...")
-        text_sentiment_results = self.text_analyzer.analyze_segments(segments)
-
-        # Analyze audio emotion
-        print("Analyzing audio emotion...")
-        audio_emotion_results = self.audio_analyzer.analyze_audio_emotion(str(audio_path))
+        # Use AssemblyAI for both transcription and emotion analysis
+        print("Analyzing with AssemblyAI...")
+        full_text, segments, text_sentiment_results, audio_emotion_results = (
+            self.assemblyai_analyzer.analyze_audio_combined(str(audio_path))
+        )
 
         # Fuse results
         print("Fusing results...")
@@ -90,15 +82,27 @@ class Pipeline:
             segments
         )
 
-        # Calculate average scores
-        avg_positive = sum(s["positive"] for _, s in text_sentiment_results) / len(text_sentiment_results)
-        avg_negative = sum(s["negative"] for _, s in text_sentiment_results) / len(text_sentiment_results)
+        # Calculate average scores for text sentiment
+        if text_sentiment_results:
+            avg_positive = sum(s["positive"] for _, s in text_sentiment_results) / len(text_sentiment_results)
+            avg_negative = sum(s["negative"] for _, s in text_sentiment_results) / len(text_sentiment_results)
+        else:
+            # Fallback if no text sentiment results
+            avg_positive = 0.5
+            avg_negative = 0.5
 
-        # For audio, we need to get emotion categories first
-        emotion_categories = list(audio_emotion_results[0][1].keys())
-        avg_emotions = {}
-        for category in emotion_categories:
-            avg_emotions[category] = sum(e[1].get(category, 0.0) for e in audio_emotion_results) / len(audio_emotion_results)
+        # Calculate average scores for audio emotion
+        if audio_emotion_results:
+            # Get emotion categories from first result
+            emotion_categories = list(audio_emotion_results[0][1].keys())
+            avg_emotions = {}
+            for category in emotion_categories:
+                avg_emotions[category] = sum(
+                    e[1].get(category, 0.0) for e in audio_emotion_results
+                ) / len(audio_emotion_results)
+        else:
+            # Fallback if no audio emotion results
+            avg_emotions = {"neutral": 1.0}
 
         # Prepare the result object
         results = AnalysisResults(
@@ -129,16 +133,17 @@ class Pipeline:
         return results
 
 
-def analyze(video_path: str, output_dir: Optional[str] = None) -> AnalysisResults:
+def analyze_with_assemblyai(video_path: str, output_dir: Optional[str] = None, api_key: Optional[str] = None) -> AnalysisResults:
     """
-    Analyze a video file for sentiment and emotion.
+    Analyze a video file using AssemblyAI.
 
     Args:
         video_path: Path to the video file
         output_dir: Directory to save results (if None, uses a temp directory)
+        api_key: AssemblyAI API key (optional)
 
     Returns:
         AnalysisResults: Results of the analysis
     """
-    pipeline = Pipeline()
+    pipeline = AssemblyAIPipeline(api_key=api_key)
     return pipeline.analyze(video_path, output_dir, save_plots=True)

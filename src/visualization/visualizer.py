@@ -92,9 +92,17 @@ class Visualizer:
                 for category in emotion_categories:
                     emotion_data[category].append(emotion_dict.get(category, 0.0))
 
-            # Plot each emotion category
+            # Check if we have audio data with different length than text data
+            # If so, we need to interpolate or resample to match the timestamps
+            audio_timestamps = np.linspace(
+                min(timestamps),
+                max(timestamps),
+                len(timeline_data.audio_emotion)
+            )
+
+            # Plot each emotion category with its appropriate timestamps
             for category, scores in emotion_data.items():
-                ax2.plot(timestamps[:len(scores)], scores, label=category)
+                ax2.plot(audio_timestamps, scores, label=category)
 
             ax2.set_xlabel('Time (seconds)')
             ax2.set_ylabel('Audio Emotion Score')

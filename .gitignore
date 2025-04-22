@@ -117,6 +117,7 @@ output/
 *.mov
 *.avi
 *.mkv
+*.png
 /tmp/
 
 # Models - large files
