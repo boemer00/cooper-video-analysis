@@ -1,32 +1,17 @@
-#!/usr/bin/env python3
-"""
-Cooper Video Analysis - Streamlit App (Cloud Deployment Version)
-
-A simplified web interface for video analysis using AssemblyAI API.
-This version is optimized for Streamlit Cloud deployment.
-"""
 import os
 import sys
-import tempfile
 import logging
+import tempfile
 from pathlib import Path
+
 import streamlit as st
+import pandas as pd
+import plotly.express as px
 from dotenv import load_dotenv
-
-# Configure logging to capture detailed info
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-# Load environment variables
-load_dotenv()
-
-# Import the AssemblyAI-specific analysis function
 from src.pipeline_assemblyai import analyze_with_assemblyai
+from src.visualization.plotly_visualizer import create_timeline_plot, create_distribution_plot
 
-# Set page configuration
+# Page configuration MUST be the first Streamlit command
 st.set_page_config(
     page_title="Cooper Video Analysis",
     page_icon="🎬",
@@ -34,176 +19,143 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-def main():
-    """Main entry point for the Streamlit application."""
+# Optional: Inject style overrides for light theme main area with dark sidebar
+st.markdown("""
+    <style>
+        /* Light theme for main content */
+        .main {background-color: white; color: #333333;}
 
-    # Header
-    st.title("Cooper Video Analysis")
-    st.markdown("### Video Sentiment and Emotion Analysis Tool")
+        /* Dark theme for sidebar */
+        .css-6qob1r {background-color: #0e1117; color: white;}
+        .css-1d391kg {color: white;}
+        .st-bq {background-color: #1e2530;}
 
-    # Version info
-    st.sidebar.info("Cooper Video Analysis v1.0.1")
+        /* Make sure text inputs in sidebar remain visible */
+        .css-1qrvfrg {background-color: #2c3e50; color: white; border-color: #4a5568;}
 
-    # Sidebar for options
-    st.sidebar.title("Analysis Options")
+        /* Other styling adjustments */
+        h1, h2, h3 {color: #333333;}
+        .stAlert {border-color: #0e1117;}
+    </style>
+""", unsafe_allow_html=True)
 
-    # Get AssemblyAI API key - prioritize environment variable for cloud deployment
-    api_key = os.getenv("ASSEMBLYAI_API_KEY")
+# Logging setup
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
-    if not api_key:
-        api_key = st.sidebar.text_input(
-            "AssemblyAI API Key",
-            type="password",
-            help="Enter your AssemblyAI API key. You can get one at https://www.assemblyai.com/"
-        )
+load_dotenv()
 
-        if not api_key:
-            st.error("AssemblyAI API key is required. Please enter it in the sidebar.")
-            st.stop()
+# Sidebar: API key & options
+st.sidebar.header("🔧 Settings")
+api_key = os.getenv("ASSEMBLYAI_API_KEY") or st.sidebar.text_input(
+    "AssemblyAI API Key", type="password",
+    help="Get your key at https://www.assemblyai.com/"
+)
 
-    # Show debug info toggle
-    show_debug = st.sidebar.checkbox("Show Debug Information", value=False)
+# Add API key verification display
+if api_key:
+    st.sidebar.success("✅ API Key found")
+    # Log first/last 4 chars only for security
+    masked_key = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "***"
+    st.sidebar.info(f"API Key: {masked_key}")
+else:
+    st.sidebar.error("❌ API Key missing")
 
-    if show_debug:
-        st.sidebar.info("Debug mode enabled - detailed information will be shown")
-        st.sidebar.info(f"Python version: {sys.version}")
-        st.sidebar.info(f"Current directory: {os.getcwd()}")
+debug = st.sidebar.checkbox("Enable Debug Mode")
 
-    # File uploader
-    st.write("### Upload Video File")
-    st.write("Upload a video file to analyze its sentiment and emotion.")
-    uploaded_file = st.file_uploader("Choose a video file", type=["mp4", "mov", "avi", "mkv"])
+# Main UI
+st.title("Cooper Video Analysis 🎬")
+st.markdown(
+    "Analyze video sentiment and emotions using AssemblyAI."
+)
 
-    if uploaded_file is not None:
-        # Display file info
-        file_details = {
-            "Filename": uploaded_file.name,
-            "File size": f"{uploaded_file.size / (1024*1024):.2f} MB",
-            "File type": uploaded_file.type
-        }
+# File upload within form
+with st.form(key="upload_form", clear_on_submit=False):
+    uploaded = st.file_uploader(
+        "Select a video file:",
+        type=["mp4", "mov", "avi", "mkv"],
+        help="Supported formats: mp4, mov, avi, mkv"
+    )
+    analyze_btn = st.form_submit_button("Analyze")
 
-        if show_debug:
-            st.write("File Details:", file_details)
+if not api_key:
+    st.error("🔑 AssemblyAI API key is required.")
+    st.stop()
 
-        # Create output directory in a location Streamlit can write to
-        output_dir = Path("./streamlit_output")
-        try:
-            os.makedirs(output_dir, exist_ok=True)
-            if show_debug:
-                st.write(f"Output directory created at: {output_dir}")
-        except Exception as e:
-            logger.error(f"Error creating output directory: {str(e)}")
-            if show_debug:
-                st.error(f"Error creating output directory: {str(e)}")
-            # Fall back to temp directory
-            output_dir = Path(tempfile.mkdtemp())
-            if show_debug:
-                st.write(f"Using temporary directory instead: {output_dir}")
+results = None  # initialize results
 
-        # Create temporary file for the uploaded video
-        try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
-                # Write uploaded file to temporary file
-                tmp_file.write(uploaded_file.getvalue())
-                video_path = tmp_file.name
-
-                if show_debug:
-                    st.write(f"Temporary file created at: {video_path}")
-        except Exception as e:
-            logger.error(f"Error creating temporary file: {str(e)}")
-            st.error(f"Error processing uploaded file: {str(e)}")
-            st.stop()
-
-        # Analysis button
-        if st.button("Analyze Video"):
-            # Show spinner during analysis
-            with st.spinner("Analyzing video with AssemblyAI, please wait..."):
-                try:
-                    logger.info("Starting analysis with AssemblyAI")
-
-                    # Test API key validity
-                    if not api_key or len(api_key) < 10:
-                        st.error("Invalid AssemblyAI API key. Please check your API key and try again.")
-                        logger.error("Invalid API key format")
-                        st.stop()
-
-                    # Run the analysis with detailed logging
-                    logger.info(f"Running analysis on video: {video_path}")
-                    results = analyze_with_assemblyai(
-                        video_path,
-                        str(output_dir),
-                        api_key=api_key
-                    )
-                    logger.info("Analysis completed successfully")
-
-                    # Log the results for debugging
-                    if show_debug:
-                        st.write("Raw Text Scores:", results.text_scores)
-                        st.write("Raw Audio Scores:", results.audio_scores)
-                        logger.info(f"Analysis completed with text scores: {results.text_scores}")
-                        logger.info(f"Analysis completed with audio scores: {results.audio_scores}")
-
-                    # Success message
-                    st.success("Analysis complete!")
-
-                    # Display results in 2 columns
-                    col1, col2 = st.columns(2)
-
-                    # Text Sentiment Results
-                    with col1:
-                        st.subheader("Text Sentiment")
-                        for sentiment, score in results.text_scores.items():
-                            st.metric(label=sentiment.capitalize(), value=f"{score:.2%}")
-
-                    # Audio Emotion Results
-                    with col2:
-                        st.subheader("Audio Emotion")
-                        for emotion, score in results.audio_scores.items():
-                            st.metric(label=emotion.capitalize(), value=f"{score:.2%}")
-
-                    # Show plots
-                    st.subheader("Analysis Plots")
-                    timeline_path = os.path.join(output_dir, "timeline_plot.png")
-                    dist_path = os.path.join(output_dir, "distribution_plot.png")
-
-                    if os.path.exists(timeline_path) and os.path.exists(dist_path):
-                        plot_col1, plot_col2 = st.columns(2)
-
-                        with plot_col1:
-                            st.image(timeline_path, caption="Timeline Analysis", use_column_width=True)
-
-                        with plot_col2:
-                            st.image(dist_path, caption="Distribution Analysis", use_column_width=True)
-                    else:
-                        st.warning("Plot files were not generated. Check logs for details.")
-                        if show_debug:
-                            st.write(f"Looking for timeline plot at: {timeline_path}")
-                            st.write(f"Looking for distribution plot at: {dist_path}")
-
-                except Exception as e:
-                    st.error(f"Error during analysis: {str(e)}")
-                    logger.error(f"Analysis error: {str(e)}", exc_info=True)
-                    if show_debug:
-                        st.exception(e)
-
-                # Clean up the temporary file
-                try:
-                    os.unlink(video_path)
-                    if show_debug:
-                        st.write(f"Temporary file {video_path} removed")
-                except Exception as e:
-                    logger.error(f"Error removing temporary file: {str(e)}")
-    else:
-        # Show instructions when no file is uploaded
-        st.info("Please upload a video file to analyze using AssemblyAI.")
-        st.write("This tool will:")
-        st.write("1. Extract audio from your video")
-        st.write("2. Analyze it for sentiment and emotion using AssemblyAI")
-        st.write("3. Generate visualizations of the results")
-
-if __name__ == "__main__":
+if uploaded and analyze_btn:
+    # Save to temp file
+    suffix = Path(uploaded.name).suffix
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     try:
-        main()
-    except Exception as e:
-        st.error(f"Application error: {str(e)}")
-        logger.error("Application error", exc_info=True)
+        tmp.write(uploaded.read())
+        video_path = tmp.name
+
+        # Create output directory
+        dirs = Path("./streamlit_output")
+        dirs.mkdir(exist_ok=True)
+
+        # Analysis
+        with st.spinner("Analyzing..."):
+            try:
+                # Validate key
+                if len(api_key) < 10:
+                    raise ValueError("Invalid API key format.")
+
+                # Show more detailed debugging info
+                if debug:
+                    st.info(f"Using API key: {masked_key}")
+                    st.info(f"Analyzing video: {uploaded.name} ({uploaded.size/(1024**2):.2f} MB)")
+                    st.info(f"Temporary file: {video_path}")
+                    st.info(f"Output directory: {dirs}")
+
+                results = analyze_with_assemblyai(
+                    video_path, str(dirs), api_key=api_key
+                )
+                st.success("✅ Analysis Complete!")
+
+            except Exception as e:
+                st.error(f"Error: {e}")
+                logger.error("Analysis failed", exc_info=True)
+                if debug:
+                    st.exception(e)
+
+    finally:
+        # Clean up temp file if created
+        try:
+            if 'video_path' in locals():
+                os.remove(video_path)
+                if debug:
+                    st.write(f"Removed temp file: {video_path}")
+        except Exception as cleanup_e:
+            logger.warning(f"Could not remove temp file: {cleanup_e}")
+
+    # Display
+    if results:
+        # Create interactive Plotly visualizations
+        st.subheader("Analysis Results")
+
+        # Create and display Timeline Analysis plot
+        timeline_fig = create_timeline_plot(results.timeline_data)
+        st.plotly_chart(timeline_fig, use_container_width=True)
+
+        # Create and display Distribution Analysis plot
+        distribution_fig = create_distribution_plot(results.timeline_data)
+        st.plotly_chart(distribution_fig, use_container_width=True)
+
+# Debug info
+if debug:
+    with st.expander("🔍 Debug Info"):
+        st.write("Python:", sys.version)
+        st.write("Working Dir:", os.getcwd())
+        st.write("Environment Variables:", [k for k in os.environ.keys() if not k.startswith('_')])
+        if uploaded:
+            st.write({
+                "Name": uploaded.name,
+                "Size": f"{uploaded.size/(1024**2):.2f} MB",
+                "Type": uploaded.type,
+            })

@@ -67,6 +67,17 @@ def main():
     # Show debug info toggle
     show_debug = st.sidebar.checkbox("Show Debug Information", value=False)
 
+    if show_debug:
+        st.sidebar.info("Debug mode enabled")
+        st.sidebar.info(f"Python version: {sys.version}")
+        st.sidebar.info(f"Current directory: {os.getcwd()}")
+        st.sidebar.info(f"API key from env: {'Found' if os.getenv('ASSEMBLYAI_API_KEY') else 'Not found'}")
+        if os.getenv('ASSEMBLYAI_API_KEY'):
+            st.sidebar.info(f"API key length: {len(os.getenv('ASSEMBLYAI_API_KEY'))}")
+        # Show available environment variables (just names, not values)
+        env_vars = [k for k in os.environ.keys() if not k.startswith('_')]
+        st.sidebar.info(f"Available environment variables: {env_vars[:20] if env_vars else 'None'}")
+
     # File uploader
     uploaded_file = st.file_uploader("Upload a video file", type=["mp4", "mov", "avi", "mkv"])
 
@@ -146,10 +157,10 @@ def main():
                         plot_col1, plot_col2 = st.columns(2)
 
                         with plot_col1:
-                            st.image(timeline_path, caption="Timeline Analysis", use_column_width=True)
+                            st.image(timeline_path, caption="Timeline Analysis", use_container_width=True)
 
                         with plot_col2:
-                            st.image(dist_path, caption="Distribution Analysis", use_column_width=True)
+                            st.image(dist_path, caption="Distribution Analysis", use_container_width=True)
                     else:
                         st.warning("Plot files were not generated. Check logs for details.")
                         if show_debug:
