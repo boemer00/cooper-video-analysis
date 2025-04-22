@@ -73,8 +73,15 @@ class AssemblyAIAnalyzer:
             file_size = os.path.getsize(audio_path) / (1024*1024)  # In MB
             logger.info(f"Audio file size: {file_size:.2f} MB")
 
-            # Use the default configuration and just enable sentiment analysis
-            transcript = transcriber.transcribe(audio_path)
+            # Use the configuration with sentiment analysis explicitly enabled
+            logger.info("Starting transcription with sentiment analysis enabled")
+            transcript = transcriber.transcribe(
+                audio_path,
+                config=aai.TranscriptionConfig(
+                    sentiment_analysis=True,
+                    auto_highlights=True
+                )
+            )
 
             if not transcript:
                 logger.error("Transcription failed: No transcript returned")
@@ -140,13 +147,36 @@ class AssemblyAIAnalyzer:
                     "neutral": 1.0  # Default to neutral
                 }
 
-                # Simple keyword-based sentiment analysis
-                positive_words = ["good", "great", "amazing", "excellent", "love", "wonderful", "happy", "awesome"]
-                negative_words = ["bad", "terrible", "awful", "hate", "sad", "angry", "upset", "disappointing"]
+                # Enhanced keyword lists for better sentiment detection
+                positive_words = [
+                    "good", "great", "amazing", "excellent", "love", "wonderful", "happy", "awesome",
+                    "best", "fantastic", "terrific", "outstanding", "superb", "perfect", "brilliant",
+                    "enjoy", "pleased", "delighted", "glad", "satisfied", "excited", "thrilled",
+                    "beautiful", "nice", "positive", "success", "successful", "win", "winning",
+                    "yay", "hooray", "congratulations", "well done", "bravo", "thank", "thanks",
+                    "appreciate", "grateful", "impressive", "remarkable", "extraordinary", "proud"
+                ]
+
+                negative_words = [
+                    "bad", "terrible", "awful", "hate", "sad", "angry", "upset", "disappointing",
+                    "worst", "horrible", "dreadful", "poor", "pathetic", "mediocre", "inferior",
+                    "dislike", "unhappy", "miserable", "depressed", "annoyed", "irritated", "furious",
+                    "ugly", "nasty", "negative", "failure", "fail", "lose", "losing",
+                    "unfortunately", "regret", "sorry", "apology", "mistake", "error", "problem",
+                    "difficult", "complicated", "frustrating", "annoying", "disaster", "tragic"
+                ]
 
                 # Count positive and negative words
                 pos_count = sum(1 for word in positive_words if word in text)
                 neg_count = sum(1 for word in negative_words if word in text)
+
+                # Log the keywords detected
+                if pos_count > 0:
+                    logger.info(f"Positive keywords found: {[word for word in positive_words if word in text]}")
+                if neg_count > 0:
+                    logger.info(f"Negative keywords found: {[word for word in negative_words if word in text]}")
+                if pos_count == 0 and neg_count == 0:
+                    logger.warning(f"No emotion keywords detected in text: '{text[:50]}...'")
 
                 # Calculate scores based on word counts
                 if pos_count > 0 or neg_count > 0:
@@ -154,11 +184,13 @@ class AssemblyAIAnalyzer:
                     if pos_count > neg_count:
                         emotion_scores["happy"] = pos_count / total
                         emotion_scores["neutral"] = 1.0 - emotion_scores["happy"]
+                        logger.info(f"Positive sentiment detected: happy={emotion_scores['happy']:.2f}")
                     elif neg_count > pos_count:
                         # Split negative sentiment between sad and angry
                         emotion_scores["sad"] = (neg_count / total) * 0.6
                         emotion_scores["angry"] = (neg_count / total) * 0.4
                         emotion_scores["neutral"] = 1.0 - (emotion_scores["sad"] + emotion_scores["angry"])
+                        logger.info(f"Negative sentiment detected: sad={emotion_scores['sad']:.2f}, angry={emotion_scores['angry']:.2f}")
 
                 emotion_results.append((timestamp, emotion_scores))
 
