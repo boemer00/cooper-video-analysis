@@ -112,6 +112,7 @@ coop/
 
 # Project specific
 test_output/
+test_output_aai/
 output/
 output_assemblyai/
 streamlit_output/
