@@ -13,6 +13,8 @@ class TimelineData:
     text_sentiment: List[Dict[str, float]]
     audio_emotion: List[Dict[str, float]]
     transcript_segments: List[Dict]
+    facial_emotion: Optional[List[Dict[str, float]]] = None
+    facial_timestamps: Optional[List[float]] = None
 
 class Visualizer:
     """Creates visualizations for sentiment and emotion analysis results."""
@@ -21,7 +23,8 @@ class Visualizer:
         self,
         text_sentiment_results: List[Tuple[float, Dict[str, float]]],
         audio_emotion_results: List[Tuple[float, Dict[str, float]]],
-        transcript_segments: List[Dict]
+        transcript_segments: List[Dict],
+        facial_emotion_results: Optional[List[Tuple[float, Dict[str, float]]]] = None
     ) -> TimelineData:
         """
         Fuse text sentiment and audio emotion results into a unified timeline.
@@ -30,6 +33,7 @@ class Visualizer:
             text_sentiment_results: List of (timestamp, sentiment) tuples
             audio_emotion_results: List of (timestamp, emotion) tuples
             transcript_segments: List of transcript segments with timestamps
+            facial_emotion_results: List of (timestamp, emotion) tuples from facial analysis
 
         Returns:
             TimelineData: Fused timeline data
@@ -41,12 +45,21 @@ class Visualizer:
         audio_timestamps = [t for t, _ in audio_emotion_results]
         audio_emotions = [e for _, e in audio_emotion_results]
 
+        # Extract facial emotion data if available
+        facial_timestamps = None
+        facial_emotions = None
+        if facial_emotion_results:
+            facial_timestamps = [t for t, _ in facial_emotion_results]
+            facial_emotions = [e for _, e in facial_emotion_results]
+
         # Create a unified timeline
         return TimelineData(
             timestamps=text_timestamps,  # Using text timestamps as reference
             text_sentiment=text_sentiments,
             audio_emotion=audio_emotions,
-            transcript_segments=transcript_segments
+            transcript_segments=transcript_segments,
+            facial_emotion=facial_emotions,
+            facial_timestamps=facial_timestamps
         )
 
     def plot_sentiment_vs_emotion(
@@ -64,7 +77,13 @@ class Visualizer:
         Returns:
             Optional[str]: Base64 encoded image if output_path is None
         """
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+        # Determine if we have facial data to plot
+        has_facial_data = timeline_data.facial_emotion is not None and len(timeline_data.facial_emotion) > 0
+
+        if has_facial_data:
+            fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
+        else:
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
         # Plot text sentiment
         timestamps = timeline_data.timestamps
@@ -104,11 +123,35 @@ class Visualizer:
             for category, scores in emotion_data.items():
                 ax2.plot(audio_timestamps, scores, label=category)
 
-            ax2.set_xlabel('Time (seconds)')
             ax2.set_ylabel('Audio Emotion Score')
             ax2.set_title('Voice Emotion Over Time')
             ax2.legend()
             ax2.grid(True)
+
+        # Plot facial emotion if available
+        if has_facial_data:
+            facial_timestamps = timeline_data.facial_timestamps
+            facial_categories = list(timeline_data.facial_emotion[0].keys())
+
+            # Prepare emotion data
+            facial_data = {category: [] for category in facial_categories}
+
+            # Extract emotion scores for each category
+            for emotion_dict in timeline_data.facial_emotion:
+                for category in facial_categories:
+                    facial_data[category].append(emotion_dict.get(category, 0.0))
+
+            # Plot each facial emotion category
+            for category, scores in facial_data.items():
+                ax3.plot(facial_timestamps, scores, label=category)
+
+            ax3.set_xlabel('Time (seconds)')
+            ax3.set_ylabel('Facial Emotion Score')
+            ax3.set_title('Facial Emotion Over Time')
+            ax3.legend()
+            ax3.grid(True)
+        else:
+            ax2.set_xlabel('Time (seconds)')
 
         plt.tight_layout()
 
@@ -140,46 +183,75 @@ class Visualizer:
         Returns:
             Optional[str]: Base64 encoded image if output_path is None
         """
-        if not timeline_data.audio_emotion:
-            return None
+        # Determine if we have facial data to plot
+        has_facial_data = timeline_data.facial_emotion is not None and len(timeline_data.facial_emotion) > 0
 
-        # Get emotion categories
-        emotion_categories = list(timeline_data.audio_emotion[0].keys())
+        # Calculate number of charts needed
+        num_charts = 2  # Text sentiment and audio emotion
+        if has_facial_data:
+            num_charts += 1  # Add facial emotion
 
-        # Calculate average score for each emotion
-        emotion_averages = {}
-        for category in emotion_categories:
-            scores = [emotion.get(category, 0.0) for emotion in timeline_data.audio_emotion]
-            emotion_averages[category] = np.mean(scores)
+        # Set up the figure size based on number of charts
+        fig_width = 6 * num_charts
+        fig, axs = plt.subplots(1, num_charts, figsize=(fig_width, 6))
 
-        # Calculate average sentiment
+        # Plot sentiment distribution
         positive_avg = np.mean([s["positive"] for s in timeline_data.text_sentiment])
         negative_avg = np.mean([s["negative"] for s in timeline_data.text_sentiment])
 
-        # Plot
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-
-        # Plot sentiment distribution
         sentiment_labels = ['Positive', 'Negative']
         sentiment_values = [positive_avg, negative_avg]
 
-        ax1.bar(sentiment_labels, sentiment_values, color=['green', 'red'])
-        ax1.set_ylabel('Average Score')
-        ax1.set_title('Average Text Sentiment')
-        ax1.set_ylim(0, 1)
+        axs[0].bar(sentiment_labels, sentiment_values, color=['green', 'red'])
+        axs[0].set_ylabel('Average Score')
+        axs[0].set_title('Average Text Sentiment')
+        axs[0].set_ylim(0, 1)
 
-        # Plot emotion distribution
-        categories = list(emotion_averages.keys())
-        values = list(emotion_averages.values())
+        # Plot audio emotion distribution
+        if timeline_data.audio_emotion:
+            # Get emotion categories
+            emotion_categories = list(timeline_data.audio_emotion[0].keys())
 
-        # Choose a colormap based on number of categories
-        colors = plt.cm.viridis(np.linspace(0, 1, len(categories)))
+            # Calculate average score for each emotion
+            emotion_averages = {}
+            for category in emotion_categories:
+                scores = [emotion.get(category, 0.0) for emotion in timeline_data.audio_emotion]
+                emotion_averages[category] = np.mean(scores)
 
-        ax2.bar(categories, values, color=colors)
-        ax2.set_ylabel('Average Score')
-        ax2.set_title('Average Voice Emotion')
-        ax2.set_ylim(0, 1)
-        plt.xticks(rotation=45)
+            categories = list(emotion_averages.keys())
+            values = list(emotion_averages.values())
+
+            # Choose a colormap based on number of categories
+            colors = plt.cm.viridis(np.linspace(0, 1, len(categories)))
+
+            axs[1].bar(categories, values, color=colors)
+            axs[1].set_ylabel('Average Score')
+            axs[1].set_title('Average Voice Emotion')
+            axs[1].set_ylim(0, 1)
+            plt.setp(axs[1].get_xticklabels(), rotation=45)
+
+        # Plot facial emotion distribution if available
+        if has_facial_data:
+            # Get facial emotion categories
+            facial_categories = list(timeline_data.facial_emotion[0].keys())
+
+            # Calculate average score for each facial emotion
+            facial_averages = {}
+            for category in facial_categories:
+                scores = [emotion.get(category, 0.0) for emotion in timeline_data.facial_emotion]
+                facial_averages[category] = np.mean(scores)
+
+            categories = list(facial_averages.keys())
+            values = list(facial_averages.values())
+
+            # Choose a colormap based on number of categories
+            colors = plt.cm.plasma(np.linspace(0, 1, len(categories)))
+
+            axs[2].bar(categories, values, color=colors)
+            axs[2].set_ylabel('Average Score')
+            axs[2].set_title('Average Facial Emotion')
+            axs[2].set_ylim(0, 1)
+            plt.setp(axs[2].get_xticklabels(), rotation=45)
 
         plt.tight_layout()
 

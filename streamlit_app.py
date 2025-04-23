@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 from dotenv import load_dotenv
 from src.pipeline_assemblyai import analyze_with_assemblyai
-from src.visualization.plotly_visualizer import create_timeline_plot, create_distribution_plot
+from src.visualization.plotly_visualizer import create_distribution_plot, create_timeline_plots
 
 # Page configuration MUST be the first Streamlit command
 st.set_page_config(
@@ -43,6 +43,16 @@ if api_key:
     st.sidebar.info(f"API Key: {masked_key}")
 else:
     st.sidebar.error("❌ API Key missing")
+
+# Analysis options
+st.sidebar.header("Analysis Options")
+facial_sampling_rate = st.sidebar.slider(
+    "Facial Analysis Sampling Rate (seconds)",
+    min_value=1,
+    max_value=5,
+    value=1,
+    help="Sample 1 frame every N seconds for facial emotion analysis. Higher values are faster but less precise."
+)
 
 debug = st.sidebar.checkbox("Enable Debug Mode")
 
@@ -92,9 +102,11 @@ if uploaded and analyze_btn:
                     st.info(f"Analyzing video: {uploaded.name} ({uploaded.size/(1024**2):.2f} MB)")
                     st.info(f"Temporary file: {video_path}")
                     st.info(f"Output directory: {dirs}")
+                    st.info(f"Facial sampling rate: {facial_sampling_rate} second(s)")
 
                 results = analyze_with_assemblyai(
-                    video_path, str(dirs), api_key=api_key
+                    video_path, str(dirs), api_key=api_key,
+                    facial_sampling_rate=facial_sampling_rate
                 )
                 st.success("✅ Analysis Complete!")
 
@@ -123,9 +135,16 @@ if uploaded and analyze_btn:
         distribution_fig = create_distribution_plot(results.timeline_data)
         st.plotly_chart(distribution_fig, use_container_width=True)
 
-        # Create and display Timeline Analysis plot
-        timeline_fig = create_timeline_plot(results.timeline_data)
-        st.plotly_chart(timeline_fig, use_container_width=True)
+        # Create and display Timeline Analysis plots
+        text_fig, voice_fig, facial_fig = create_timeline_plots(results.timeline_data)
+
+        # Display each timeline figure with its own legend
+        st.plotly_chart(text_fig, use_container_width=True)
+        st.plotly_chart(voice_fig, use_container_width=True)
+
+        # Only display facial emotion if we have data
+        if facial_fig:
+            st.plotly_chart(facial_fig, use_container_width=True)
 
 # Debug info
 if debug:

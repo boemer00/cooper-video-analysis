@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from .preprocessing import extract_audio, AssemblyAIAnalyzer
 from .visualization import Visualizer, TimelineData
+from .inference import FacialEmotionAnalyzer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +19,7 @@ class AnalysisResults:
     """Container for the results of the video analysis."""
     text_scores: Dict
     audio_scores: Dict
+    facial_scores: Dict
     timeline_data: TimelineData
     timeline_plot_bytes: Optional[str] = None
     dist_plot_bytes: Optional[str] = None
@@ -37,7 +39,7 @@ class AssemblyAIPipeline:
         """
         logger.info("Initializing AssemblyAI pipeline")
         self.assemblyai_analyzer = AssemblyAIAnalyzer(api_key=api_key)
-        # Remove the text analyzer backup
+        self.facial_analyzer = FacialEmotionAnalyzer()
         self.visualizer = Visualizer()
 
     def analyze(
@@ -45,7 +47,8 @@ class AssemblyAIPipeline:
         video_path: str,
         output_dir: Optional[str] = None,
         generate_plots: bool = True,
-        save_plots: bool = False
+        save_plots: bool = False,
+        facial_sampling_rate: int = 1
     ) -> AnalysisResults:
         """
         Analyze a video for sentiment and emotion using AssemblyAI.
@@ -55,6 +58,7 @@ class AssemblyAIPipeline:
             output_dir: Directory to save outputs (if None, uses a temp directory)
             generate_plots: Whether to generate visualization plots
             save_plots: Whether to save plots to disk
+            facial_sampling_rate: Sample 1 frame every N seconds for facial analysis
 
         Returns:
             AnalysisResults: Results of the analysis
@@ -89,12 +93,27 @@ class AssemblyAIPipeline:
             audio_emotion_results = [(0, {"neutral": 1.0, "happy": 0.0, "sad": 0.0, "angry": 0.0})]
             logger.warning("Using fallback neutral results due to analysis failure")
 
+        # Analyze facial emotions
+        logger.info("Analyzing facial emotions from video frames...")
+        try:
+            facial_emotion_results = self.facial_analyzer.analyze_video(
+                video_path,
+                sampling_rate=facial_sampling_rate
+            )
+            logger.info(f"Facial emotion analysis complete: {len(facial_emotion_results)} frames processed")
+        except Exception as e:
+            logger.error(f"Facial emotion analysis failed: {str(e)}")
+            # Provide minimal fallback results if analysis fails
+            facial_emotion_results = [(0, {"neutral": 1.0, "happy": 0.0, "sad": 0.0, "angry": 0.0, "disgust": 0.0, "fear": 0.0, "surprise": 0.0})]
+            logger.warning("Using fallback neutral results due to facial analysis failure")
+
         # Fuse results
         logger.info("Fusing results...")
         timeline_data = self.visualizer.fuse_results(
             text_sentiment_results,
             audio_emotion_results,
-            segments
+            segments,
+            facial_emotion_results
         )
 
         # Calculate average scores for text sentiment
@@ -119,13 +138,28 @@ class AssemblyAIPipeline:
             # Fallback if no audio emotion results
             avg_emotions = {"neutral": 1.0}
 
+        # Calculate average scores for facial emotion
+        if facial_emotion_results:
+            # Get emotion categories from first result
+            facial_categories = list(facial_emotion_results[0][1].keys())
+            avg_facial_emotions = {}
+            for category in facial_categories:
+                avg_facial_emotions[category] = sum(
+                    e[1].get(category, 0.0) for e in facial_emotion_results
+                ) / len(facial_emotion_results)
+        else:
+            # Fallback if no facial emotion results
+            avg_facial_emotions = {"neutral": 1.0}
+
         logger.info(f"Text sentiment scores: positive={avg_positive:.2f}, negative={avg_negative:.2f}")
         logger.info(f"Audio emotion scores: {', '.join([f'{k}={v:.2f}' for k, v in avg_emotions.items()])}")
+        logger.info(f"Facial emotion scores: {', '.join([f'{k}={v:.2f}' for k, v in avg_facial_emotions.items()])}")
 
         # Prepare the result object
         results = AnalysisResults(
             text_scores={"positive": avg_positive, "negative": avg_negative},
             audio_scores=avg_emotions,
+            facial_scores=avg_facial_emotions,
             timeline_data=timeline_data
         )
 
@@ -153,7 +187,12 @@ class AssemblyAIPipeline:
         return results
 
 
-def analyze_with_assemblyai(video_path: str, output_dir: Optional[str] = None, api_key: Optional[str] = None) -> AnalysisResults:
+def analyze_with_assemblyai(
+    video_path: str,
+    output_dir: Optional[str] = None,
+    api_key: Optional[str] = None,
+    facial_sampling_rate: int = 1
+) -> AnalysisResults:
     """
     Analyze a video file using AssemblyAI.
 
@@ -161,10 +200,16 @@ def analyze_with_assemblyai(video_path: str, output_dir: Optional[str] = None, a
         video_path: Path to the video file
         output_dir: Directory to save results (if None, uses a temp directory)
         api_key: AssemblyAI API key (optional)
+        facial_sampling_rate: Sample 1 frame every N seconds for facial analysis
 
     Returns:
         AnalysisResults: Results of the analysis
     """
     logger.info(f"Starting analysis of video: {video_path}")
     pipeline = AssemblyAIPipeline(api_key=api_key)
-    return pipeline.analyze(video_path, output_dir, save_plots=True)
+    return pipeline.analyze(
+        video_path,
+        output_dir,
+        save_plots=True,
+        facial_sampling_rate=facial_sampling_rate
+    )

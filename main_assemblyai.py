@@ -38,6 +38,13 @@ def main():
         type=str,
         help="AssemblyAI API key (if not provided, uses ASSEMBLYAI_API_KEY from .env)"
     )
+    parser.add_argument(
+        "--facial-sampling-rate",
+        "-f",
+        type=int,
+        default=1,
+        help="Sample 1 frame every N seconds for facial emotion analysis (default: 1)"
+    )
 
     args = parser.parse_args()
 
@@ -61,10 +68,12 @@ def main():
     # Run the analysis
     try:
         print(f"Analyzing video with AssemblyAI: {video_path}")
+        print(f"Facial sampling rate: {args.facial_sampling_rate} second(s)")
         results = analyze_with_assemblyai(
             str(video_path),
             str(output_dir),
-            api_key=api_key
+            api_key=api_key,
+            facial_sampling_rate=args.facial_sampling_rate
         )
 
         # Print summary of results
@@ -75,6 +84,10 @@ def main():
 
         print("\nAudio Emotion:")
         for emotion, score in results.audio_scores.items():
+            print(f"  {emotion.capitalize()}: {score:.4f}")
+
+        print("\nFacial Emotion:")
+        for emotion, score in results.facial_scores.items():
             print(f"  {emotion.capitalize()}: {score:.4f}")
 
         print(f"\nPlots saved to {output_dir}")
