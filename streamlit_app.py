@@ -119,13 +119,13 @@ if uploaded and analyze_btn:
         # Create interactive Plotly visualizations
         st.subheader("Analysis Results")
 
-        # Create and display Timeline Analysis plot
-        timeline_fig = create_timeline_plot(results.timeline_data)
-        st.plotly_chart(timeline_fig, use_container_width=True)
-
         # Create and display Distribution Analysis plot
         distribution_fig = create_distribution_plot(results.timeline_data)
         st.plotly_chart(distribution_fig, use_container_width=True)
+
+        # Create and display Timeline Analysis plot
+        timeline_fig = create_timeline_plot(results.timeline_data)
+        st.plotly_chart(timeline_fig, use_container_width=True)
 
 # Debug info
 if debug:

@@ -23,7 +23,7 @@ def create_timeline_plot(timeline_data: TimelineData) -> go.Figure:
         rows=2, cols=1,
         shared_xaxes=True,
         subplot_titles=("Text Sentiment Over Time", "Voice Emotion Over Time"),
-        vertical_spacing=0.1
+        vertical_spacing=0.3
     )
 
     # Get the data for text sentiment
@@ -38,7 +38,7 @@ def create_timeline_plot(timeline_data: TimelineData) -> go.Figure:
             y=positive_scores,
             mode='lines',
             name='Positive',
-            line=dict(color='#2ecc71', width=2)
+            line=dict(color='#2ecc71', width=2, shape='spline', smoothing=0.5)
         ),
         row=1, col=1
     )
@@ -49,7 +49,7 @@ def create_timeline_plot(timeline_data: TimelineData) -> go.Figure:
             y=negative_scores,
             mode='lines',
             name='Negative',
-            line=dict(color='#e74c3c', width=2)
+            line=dict(color='#e74c3c', width=2, shape='spline', smoothing=0.5)
         ),
         row=1, col=1
     )
@@ -91,7 +91,7 @@ def create_timeline_plot(timeline_data: TimelineData) -> go.Figure:
                     y=scores,
                     mode='lines',
                     name=category.capitalize(),
-                    line=dict(color=color, width=2)
+                    line=dict(color=color, width=2, shape='spline', smoothing=0.5)
                 ),
                 row=2, col=1
             )
@@ -100,15 +100,24 @@ def create_timeline_plot(timeline_data: TimelineData) -> go.Figure:
     fig.update_layout(
         height=600,
         template="plotly",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(l=40, r=40, t=60, b=40),
+        # Move legend below the first graph
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=0.55,  # Position below the first subplot
+            xanchor="center",
+            x=0.5,   # Center horizontally
+            font=dict(size=10)
+        ),
+        margin=dict(l=40, r=40, t=100, b=40),
         hovermode="x unified",
     )
 
     # Update axis labels with darker colors for light background
-    fig.update_yaxes(title_text="Sentiment Score", range=[0, 1], row=1, col=1,
+    # Extend y-axis range slightly to ensure lines at value 1 are visible
+    fig.update_yaxes(title_text="Sentiment Score", range=[0, 1.05], row=1, col=1,
                     title_font=dict(color="#333333"))
-    fig.update_yaxes(title_text="Emotion Score", range=[0, 1], row=2, col=1,
+    fig.update_yaxes(title_text="Emotion Score", range=[0, 1.05], row=2, col=1,
                     title_font=dict(color="#333333"))
     fig.update_xaxes(title_text="Time (seconds)", row=2, col=1,
                     title_font=dict(color="#333333"))
@@ -116,6 +125,10 @@ def create_timeline_plot(timeline_data: TimelineData) -> go.Figure:
     # Add gridlines with light gray color
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="rgba(200, 200, 200, 0.3)")
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="rgba(200, 200, 200, 0.3)")
+
+    # Update annotation positions for better title spacing
+    for i in fig['layout']['annotations']:
+        i['y'] = i['y'] + 0.05
 
     return fig
 
