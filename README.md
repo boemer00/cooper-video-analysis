@@ -1,15 +1,19 @@
-# Cooper Video Analysis
+# Cooper Video Analysis - Streamlit App
 
-A modular Python proof-of-concept application for analyzing sentiment and emotion in videos.
+A Streamlit-powered web application for analyzing sentiment and emotion in videos using Cooper Video Analysis with AssemblyAI integration.
 
 ## Features
 
-- Extracts audio tracks from TikTok-style videos
-- Transcribes speech to text using OpenAI's Whisper model
-- Analyzes transcript sentiment using DistilBERT
-- Analyzes voice emotion using wav2vec2
-- Produces comparative visualizations of text sentiment vs. voice emotion
-- Provides a FastAPI serverless endpoint for Vercel deployment
+- **Web Interface**: Easy-to-use Streamlit interface for video analysis
+- **AssemblyAI Integration**:
+  - **Accurate Transcription**: State-of-the-art model for speech-to-text
+  - **Improved Emotion Detection**: Better classification from speech
+  - **Speaker Identification**: Automatically identifies different speakers
+  - **Entity Detection**: Recognizes people, places, and other entities
+  - **Auto Chapters**: Automatically detects topic changes
+- **Visual Results**: Interactive Plotly visualizations of sentiment and emotion scores
+- **Debug Mode**: Toggle debug information for troubleshooting
+- **Download Results**: Save analysis results for further use
 
 ## Project Structure
 
@@ -18,125 +22,149 @@ cooper-video-analysis/
 ├── api/
 │   └── analyze.py        # FastAPI serverless endpoint
 ├── src/
-│   ├── preprocessing/
-│   │   ├── audio_extractor.py    # Extract audio from video
-│   │   ├── transcriber.py        # Transcribe audio to text
-│   │   └── audio_emotion.py      # Analyze audio for emotion
-│   ├── inference/
-│   │   └── text_sentiment.py     # Analyze text for sentiment
-│   ├── visualization/
-│   │   └── visualizer.py         # Create visualizations
-│   └── pipeline.py               # Main pipeline
-├── main.py                       # CLI entry point
-├── vercel.json                   # Vercel configuration
-└── requirements.txt              # Dependencies
+│   ├── preprocessing/    # Audio extraction and processing
+│   ├── inference/        # Sentiment analysis
+│   ├── visualization/    # Visualization components
+│   ├── pipeline.py       # Standard pipeline
+│   └── pipeline_assemblyai.py  # AssemblyAI pipeline
+├── streamlit_app.py      # Streamlit web interface
+├── main.py               # CLI for standard pipeline
+├── main_assemblyai.py    # CLI for AssemblyAI pipeline
+└── requirements.txt      # Dependencies
 ```
 
-## Installation
+## Local Setup
 
-### Environment Setup
+### Prerequisites
 
-This project requires Python 3.12.9, which you can install using pyenv:
+- Python 3.12.9
+- pip
+
+### Installation
+
+1. Clone the repository:
 
 ```bash
+git clone https://github.com/yourusername/cooper-video-analysis.git
+cd cooper-video-analysis
+```
+
+2. Create a virtual environment (recommended):
+
+```bash
+# Using pyenv
 pyenv install 3.12.9
 pyenv virtualenv 3.12.9 coop
 pyenv activate coop
+
+# Or using standard venv
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-### Install Dependencies
+3. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Usage
-
-### Command Line
+4. Set up your AssemblyAI API key:
 
 ```bash
-python main.py path/to/video.mp4 --output-dir ./results
+# Copy the example env file if it exists
+cp .env.example .env
+
+# Or create a new .env file
+echo "ASSEMBLYAI_API_KEY=your_api_key_here" > .env
 ```
 
-This will:
-1. Extract audio from the video
-2. Transcribe the audio to text
-3. Analyze sentiment in the text
-4. Analyze emotion in the audio
-5. Generate comparison visualizations
-6. Save the results to the specified output directory
+You can get a free API key with 5 hours of free processing per month at [AssemblyAI](https://www.assemblyai.com/).
 
-### API
-
-The application includes a FastAPI serverless function for deployment on Vercel:
+### Running the App Locally
 
 ```bash
-# Local testing
-uvicorn api.analyze:app --reload
-
-# Deploy to Vercel
-vercel
+streamlit run streamlit_app.py
 ```
 
-The API has two endpoints:
-- `GET /`: Health check
-- `POST /analyze`: Upload a video file for analysis
+The app will be available at http://localhost:8501
 
-## API Response Format
+### Command Line Usage
 
-```json
-{
-  "text_sentiment": {
-    "positive": 0.65,
-    "negative": 0.35
-  },
-  "voice_emotion": {
-    "happy": 0.75,
-    "sad": 0.05,
-    "angry": 0.10,
-    "neutral": 0.10
-  },
-  "plots": {
-    "timeline": "base64-encoded PNG",
-    "distribution": "base64-encoded PNG"
-  }
-}
-```
-
-## Models
-
-- **Transcription**: Whisper (base) from OpenAI
-- **Text Sentiment**: DistilBERT-based classifier from Hugging Face
-- **Voice Emotion**: wav2vec2-based Speech Emotion Recognition model
-
-## Development
-
-### Running Tests
+For command line usage with AssemblyAI:
 
 ```bash
-# TODO: Add tests
+python main_assemblyai.py /path/to/your/video.mp4 --output-dir ./results
 ```
 
-### Local Development
+Options:
+```
+usage: main_assemblyai.py [-h] [--output-dir OUTPUT_DIR] [--api-key API_KEY] video_path
 
-1. Clone the repository
-2. Set up the environment as described above
-3. Run the CLI script for local testing
+positional arguments:
+  video_path            Path to the video file to analyze
 
-### Vercel Deployment
+options:
+  -h, --help            show this help message and exit
+  --output-dir OUTPUT_DIR, -o OUTPUT_DIR
+                        Directory to save results (default: ./output_assemblyai)
+  --api-key API_KEY, -k API_KEY
+                        AssemblyAI API key (if not in .env file)
+```
 
-For serverless API deployment:
+## Deployment to Streamlit Cloud
+
+### Option 1: Deploy from GitHub
+
+1. Push your code to GitHub:
 
 ```bash
-vercel
+git add .
+git commit -m "Streamlit app ready for deployment"
+git push
 ```
+
+2. Visit [Streamlit Cloud](https://streamlit.io/cloud) and sign in with your GitHub account.
+
+3. Click "New app", select your repository, and enter:
+   - Repository: `yourusername/cooper-video-analysis`
+   - Branch: `main` (or your preferred branch)
+   - Main file path: `streamlit_app.py`
+   - If using a specialized requirements file: `requirements_streamlit.txt`
+
+4. Add your AssemblyAI API key as a secret in the Streamlit Cloud settings:
+   - Go to your app's settings
+   - Scroll to "Secrets"
+   - Add a new secret with the name `ASSEMBLYAI_API_KEY` and your API key as the value
+
+## Using the App
+
+1. Enter your AssemblyAI API key if not already configured
+2. Upload a video file (supported formats: mp4, mov, avi, mkv)
+3. Click "Analyze"
+4. View the results with interactive visualizations:
+   - Timeline analysis showing emotion and sentiment over time
+   - Distribution analysis showing overall scores
 
 ## Limitations
 
-- The serverless function has a 60-second timeout, which may not be sufficient for long videos
-- Larger models may exceed memory limits in serverless environments
-- Models are downloaded at runtime in the serverless function, which can cause cold start delays
+- **File Size**: The app may struggle with very large video files
+- **Processing Time**: Analysis can take time, especially with longer videos
+- **AssemblyAI API**: Requires internet connectivity; free tier limited to 5 hours per month
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. Enable "Show Debug Information" in the sidebar
+2. Check the logs for detailed error messages
+3. Ensure your video file is in a supported format
+4. Verify your AssemblyAI API key
 
 ## License
 
 MIT
+
+## Credits
+
+- Built with [Streamlit](https://streamlit.io/)
+- Powered by [AssemblyAI](https://www.assemblyai.com/)

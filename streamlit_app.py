@@ -14,30 +14,10 @@ from src.visualization.plotly_visualizer import create_timeline_plot, create_dis
 # Page configuration MUST be the first Streamlit command
 st.set_page_config(
     page_title="Cooper Video Analysis",
-    page_icon="🎬",
+    page_icon="📱",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
-
-# Optional: Inject style overrides for light theme main area with dark sidebar
-st.markdown("""
-    <style>
-        /* Light theme for main content */
-        .main {background-color: white; color: #333333;}
-
-        /* Dark theme for sidebar */
-        .css-6qob1r {background-color: #0e1117; color: white;}
-        .css-1d391kg {color: white;}
-        .st-bq {background-color: #1e2530;}
-
-        /* Make sure text inputs in sidebar remain visible */
-        .css-1qrvfrg {background-color: #2c3e50; color: white; border-color: #4a5568;}
-
-        /* Other styling adjustments */
-        h1, h2, h3 {color: #333333;}
-        .stAlert {border-color: #0e1117;}
-    </style>
-""", unsafe_allow_html=True)
 
 # Logging setup
 logging.basicConfig(
@@ -49,7 +29,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Sidebar: API key & options
-st.sidebar.header("🔧 Settings")
+st.sidebar.header("Cooper")
 api_key = os.getenv("ASSEMBLYAI_API_KEY") or st.sidebar.text_input(
     "AssemblyAI API Key", type="password",
     help="Get your key at https://www.assemblyai.com/"
@@ -67,9 +47,9 @@ else:
 debug = st.sidebar.checkbox("Enable Debug Mode")
 
 # Main UI
-st.title("Cooper Video Analysis 🎬")
+st.title("Video Sentiment Analysis 📱")
 st.markdown(
-    "Analyze video sentiment and emotions using AssemblyAI."
+    "Analyze short-form video sentiment and emotions using AI."
 )
 
 # File upload within form
@@ -82,7 +62,7 @@ with st.form(key="upload_form", clear_on_submit=False):
     analyze_btn = st.form_submit_button("Analyze")
 
 if not api_key:
-    st.error("🔑 AssemblyAI API key is required.")
+    st.error("🔑 API key is required.")
     st.stop()
 
 results = None  # initialize results
