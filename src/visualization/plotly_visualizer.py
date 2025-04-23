@@ -16,15 +16,27 @@ def create_timeline_plot(timeline_data: TimelineData) -> go.Figure:
         timeline_data: The timeline data containing sentiment and emotion scores
 
     Returns:
-        A Plotly figure with two subplots for sentiment and emotion
+        A Plotly figure with subplots for sentiment, voice emotion, and facial emotion
     """
-    # Create a figure with 2 subplots vertically stacked
-    fig = sp.make_subplots(
-        rows=2, cols=1,
-        shared_xaxes=True,
-        subplot_titles=("Text Sentiment Over Time", "Voice Emotion Over Time"),
-        vertical_spacing=0.3
-    )
+    # Determine if we have facial data to plot
+    has_facial_data = timeline_data.facial_emotion is not None and len(timeline_data.facial_emotion) > 0
+
+    # Create a figure with appropriate subplots (2 or 3 depending on data)
+    if has_facial_data:
+        fig = sp.make_subplots(
+            rows=3, cols=1,
+            shared_xaxes=True,
+            subplot_titles=("Text Sentiment Over Time", "Voice Emotion Over Time", "Facial Emotion Over Time"),
+            vertical_spacing=0.15,
+            row_heights=[0.33, 0.33, 0.33]
+        )
+    else:
+        fig = sp.make_subplots(
+            rows=2, cols=1,
+            shared_xaxes=True,
+            subplot_titles=("Text Sentiment Over Time", "Voice Emotion Over Time"),
+            vertical_spacing=0.3
+        )
 
     # Get the data for text sentiment
     timestamps = timeline_data.timestamps
@@ -78,10 +90,13 @@ def create_timeline_plot(timeline_data: TimelineData) -> go.Figure:
             'happy': '#3498db',  # Blue
             'sad': '#9b59b6',    # Purple
             'angry': '#e74c3c',  # Red
-            'neutral': '#95a5a6' # Gray
+            'neutral': '#95a5a6', # Gray
+            'fear': '#f39c12',   # Orange
+            'disgust': '#27ae60', # Green
+            'surprise': '#8e44ad' # Purple
         }
 
-        # Add traces for each emotion (bottom subplot)
+        # Add traces for each emotion (middle subplot)
         for category, scores in emotion_data.items():
             color = emotion_colors.get(category, '#2c3e50')
 
@@ -90,26 +105,65 @@ def create_timeline_plot(timeline_data: TimelineData) -> go.Figure:
                     x=audio_timestamps,
                     y=scores,
                     mode='lines',
-                    name=category.capitalize(),
+                    name=f"Voice {category.capitalize()}",
                     line=dict(color=color, width=2, shape='spline', smoothing=0.5)
                 ),
                 row=2, col=1
             )
 
+    # Get facial emotion data if available
+    if has_facial_data:
+        facial_timestamps = timeline_data.facial_timestamps
+        facial_categories = list(timeline_data.facial_emotion[0].keys())
+
+        # Prepare facial emotion data for each category
+        facial_data = {category: [] for category in facial_categories}
+
+        # Extract emotion scores for each category
+        for emotion_dict in timeline_data.facial_emotion:
+            for category in facial_categories:
+                facial_data[category].append(emotion_dict.get(category, 0.0))
+
+        # Color map for facial emotions - use different shades
+        facial_colors = {
+            'angry': '#c0392b',   # Dark red
+            'disgust': '#16a085', # Teal
+            'fear': '#d35400',    # Dark orange
+            'happy': '#2980b9',   # Dark blue
+            'sad': '#8e44ad',     # Dark purple
+            'surprise': '#d98880', # Light red
+            'neutral': '#7f8c8d'   # Dark gray
+        }
+
+        # Add traces for each facial emotion (bottom subplot)
+        for category, scores in facial_data.items():
+            color = facial_colors.get(category, '#34495e')
+
+            fig.add_trace(
+                go.Scatter(
+                    x=facial_timestamps,
+                    y=scores,
+                    mode='lines',
+                    name=f"Face {category.capitalize()}",
+                    line=dict(color=color, width=2, shape='spline', smoothing=0.5)
+                ),
+                row=3, col=1
+            )
+
     # Update layout for better appearance
     fig.update_layout(
-        height=600,
+        height=800 if has_facial_data else 600,
         template="plotly",
-        # Move legend below the first graph
+        # Move legend to the right side
         legend=dict(
-            orientation="h",
+            orientation="v",
             yanchor="top",
-            y=0.55,  # Position below the first subplot
-            xanchor="center",
-            x=0.5,   # Center horizontally
+            y=1,
+            xanchor="left",
+            x=1.05,
             font=dict(size=10)
         ),
-        margin=dict(l=40, r=40, t=100, b=40),
+        margin=dict(l=40, r=120, t=100, b=40),
         hovermode="x unified",
     )
 
@@ -117,10 +171,17 @@ def create_timeline_plot(timeline_data: TimelineData) -> go.Figure:
     # Extend y-axis range slightly to ensure lines at value 1 are visible
     fig.update_yaxes(title_text="Sentiment Score", range=[0, 1.05], row=1, col=1,
                     title_font=dict(color="#333333"))
-    fig.update_yaxes(title_text="Emotion Score", range=[0, 1.05], row=2, col=1,
+    fig.update_yaxes(title_text="Voice Emotion Score", range=[0, 1.05], row=2, col=1,
                     title_font=dict(color="#333333"))
-    fig.update_xaxes(title_text="Time (seconds)", row=2, col=1,
-                    title_font=dict(color="#333333"))
+
+    if has_facial_data:
+        fig.update_yaxes(title_text="Facial Emotion Score", range=[0, 1.05], row=3, col=1,
+                        title_font=dict(color="#333333"))
+        fig.update_xaxes(title_text="Time (seconds)", row=3, col=1,
+                        title_font=dict(color="#333333"))
+    else:
+        fig.update_xaxes(title_text="Time (seconds)", row=2, col=1,
+                        title_font=dict(color="#333333"))
 
     # Add gridlines with light gray color
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="rgba(200, 200, 200, 0.3)")
@@ -140,14 +201,24 @@ def create_distribution_plot(timeline_data: TimelineData) -> go.Figure:
         timeline_data: The timeline data containing sentiment and emotion scores
 
     Returns:
-        A Plotly figure with two subplots for sentiment and emotion distribution
+        A Plotly figure with subplots for sentiment, voice emotion, and facial emotion distribution
     """
-    # Create a figure with 2 subplots side by side
-    fig = sp.make_subplots(
-        rows=1, cols=2,
-        subplot_titles=("Average Text Sentiment", "Average Voice Emotion"),
-        horizontal_spacing=0.1
-    )
+    # Determine if we have facial data to plot
+    has_facial_data = timeline_data.facial_emotion is not None and len(timeline_data.facial_emotion) > 0
+
+    # Create a figure with appropriate number of subplots
+    if has_facial_data:
+        fig = sp.make_subplots(
+            rows=1, cols=3,
+            subplot_titles=("Average Text Sentiment", "Average Voice Emotion", "Average Facial Emotion"),
+            horizontal_spacing=0.05
+        )
+    else:
+        fig = sp.make_subplots(
+            rows=1, cols=2,
+            subplot_titles=("Average Text Sentiment", "Average Voice Emotion"),
+            horizontal_spacing=0.1
+        )
 
     # Calculate average sentiment scores
     positive_avg = np.mean([s["positive"] for s in timeline_data.text_sentiment])
@@ -192,13 +263,16 @@ def create_distribution_plot(timeline_data: TimelineData) -> go.Figure:
             'Happy': '#3498db',  # Blue
             'Sad': '#9b59b6',    # Purple
             'Angry': '#e74c3c',  # Red
-            'Neutral': '#95a5a6' # Gray
+            'Neutral': '#95a5a6', # Gray
+            'Fear': '#f39c12',   # Orange
+            'Disgust': '#27ae60', # Green
+            'Surprise': '#8e44ad' # Purple
         }
 
         # Map colors to the categories in the DataFrame
         colors = [emotion_colors.get(emotion, '#2c3e50') for emotion in emotion_df['Emotion']]
 
-        # Add emotion bar chart (right subplot)
+        # Add emotion bar chart (middle subplot)
         fig.add_trace(
             go.Bar(
                 x=emotion_df['Emotion'],
@@ -206,24 +280,67 @@ def create_distribution_plot(timeline_data: TimelineData) -> go.Figure:
                 text=emotion_df['Score'].apply(lambda x: f"{x:.1%}"),
                 textposition='outside',
                 marker_color=colors,
-                name='Audio Emotion'
+                name='Voice Emotion'
             ),
             row=1, col=2
         )
 
-    # Update layout for better appearance
+    # Calculate average facial emotion scores if available
+    if has_facial_data:
+        facial_categories = list(timeline_data.facial_emotion[0].keys())
+        facial_averages = {}
+
+        for category in facial_categories:
+            scores = [emotion.get(category, 0.0) for emotion in timeline_data.facial_emotion]
+            facial_averages[category] = np.mean(scores)
+
+        # Create DataFrame for facial emotions
+        facial_df = pd.DataFrame({
+            'Emotion': [cat.capitalize() for cat in facial_averages.keys()],
+            'Score': list(facial_averages.values())
+        })
+
+        # Color map for facial emotions - use different shades
+        facial_colors = {
+            'Angry': '#c0392b',   # Dark red
+            'Disgust': '#16a085', # Teal
+            'Fear': '#d35400',    # Dark orange
+            'Happy': '#2980b9',   # Dark blue
+            'Sad': '#8e44ad',     # Dark purple
+            'Surprise': '#d98880', # Light red
+            'Neutral': '#7f8c8d'   # Dark gray
+        }
+
+        # Map colors to the categories in the DataFrame
+        colors = [facial_colors.get(emotion, '#34495e') for emotion in facial_df['Emotion']]
+
+        # Add facial emotion bar chart (right subplot)
+        fig.add_trace(
+            go.Bar(
+                x=facial_df['Emotion'],
+                y=facial_df['Score'],
+                text=facial_df['Score'].apply(lambda x: f"{x:.1%}"),
+                textposition='outside',
+                marker_color=colors,
+                name='Facial Emotion'
+            ),
+            row=1, col=3
+        )
+
+    # Update layout
     fig.update_layout(
         height=400,
         template="plotly",
         showlegend=False,
-        margin=dict(l=40, r=40, t=60, b=40),
+        margin=dict(l=40, r=40, t=80, b=40),
     )
 
-    # Update axis formatting with darker colors for light background
-    fig.update_yaxes(title_text="Score", range=[0, 1], tickformat=".0%", row=1, col=1,
-                    title_font=dict(color="#333333"))
-    fig.update_yaxes(title_text="Score", range=[0, 1], tickformat=".0%", row=1, col=2,
-                    title_font=dict(color="#333333"))
+    # Update y-axis range and font
+    fig.update_yaxes(
+        range=[0, 1],
+        title_text="Score",
+        title_font=dict(color="#333333")
+    )
 
     # Add gridlines with light gray color
     fig.update_xaxes(showgrid=False)
