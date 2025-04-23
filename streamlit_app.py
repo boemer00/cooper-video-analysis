@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 from dotenv import load_dotenv
 from src.pipeline_assemblyai import analyze_with_assemblyai
-from src.visualization.plotly_visualizer import create_timeline_plot, create_distribution_plot
+from src.visualization.plotly_visualizer import create_distribution_plot, create_timeline_plots
 
 # Page configuration MUST be the first Streamlit command
 st.set_page_config(
@@ -135,36 +135,16 @@ if uploaded and analyze_btn:
         distribution_fig = create_distribution_plot(results.timeline_data)
         st.plotly_chart(distribution_fig, use_container_width=True)
 
-        # Create and display Timeline Analysis plot
-        timeline_fig = create_timeline_plot(results.timeline_data)
-        st.plotly_chart(timeline_fig, use_container_width=True)
+        # Create and display Timeline Analysis plots
+        text_fig, voice_fig, facial_fig = create_timeline_plots(results.timeline_data)
 
-        # Display the average scores in three columns
-        col1, col2, col3 = st.columns(3)
+        # Display each timeline figure with its own legend
+        st.plotly_chart(text_fig, use_container_width=True)
+        st.plotly_chart(voice_fig, use_container_width=True)
 
-        with col1:
-            st.subheader("Text Sentiment Scores")
-            for sentiment, score in results.text_scores.items():
-                st.metric(
-                    label=sentiment.capitalize(),
-                    value=f"{score:.1%}"
-                )
-
-        with col2:
-            st.subheader("Voice Emotion Scores")
-            for emotion, score in results.audio_scores.items():
-                st.metric(
-                    label=emotion.capitalize(),
-                    value=f"{score:.1%}"
-                )
-
-        with col3:
-            st.subheader("Facial Emotion Scores")
-            for emotion, score in results.facial_scores.items():
-                st.metric(
-                    label=emotion.capitalize(),
-                    value=f"{score:.1%}"
-                )
+        # Only display facial emotion if we have data
+        if facial_fig:
+            st.plotly_chart(facial_fig, use_container_width=True)
 
 # Debug info
 if debug:

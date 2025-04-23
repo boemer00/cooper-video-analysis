@@ -15,5 +15,4 @@ streamlit==1.44.1
 watchdog==4.0.0
 plotly==5.18.0
 pandas==2.1.1
-deepface==0.0.79
 opencv-python==4.8.1.78
