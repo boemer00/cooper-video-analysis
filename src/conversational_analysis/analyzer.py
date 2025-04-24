@@ -1,5 +1,6 @@
 """Module for analyzing conversational flows in video transcripts."""
 import re
+import os
 import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
@@ -7,6 +8,11 @@ from collections import Counter
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.tag import pos_tag
+from dotenv import load_dotenv
+import anthropic
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -115,6 +121,19 @@ class ConversationalAnalyzer:
             r"(?i)(oh|ah) (how|what) (wonderful|lovely|nice|great)",
         ]
 
+        # Initialize Anthropic client if API key is available
+        self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        self.anthropic_client = None
+        if self.anthropic_api_key:
+            try:
+                self.anthropic_client = anthropic.Anthropic(api_key=self.anthropic_api_key)
+                logger.info("Anthropic client initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Anthropic client: {e}")
+                self.anthropic_client = None
+        else:
+            logger.warning("No Anthropic API key found, will use fallback summarization")
+
         logger.info("Conversational analyzer initialized with slang dictionary and sarcasm patterns")
 
     def analyze_transcript(self, full_text: str, segments: List[Dict]) -> ConversationalInsights:
@@ -142,8 +161,11 @@ class ConversationalAnalyzer:
         top_adjectives = self._extract_adjectives(full_text)
         logger.info(f"Extracted top {len(top_adjectives)} adjectives")
 
-        # Generate a summary of the content
-        summary = self._generate_summary(full_text, slang_findings, sarcasm_findings, top_adjectives)
+        # Generate a summary of the content - use Anthropic if available
+        if self.anthropic_client:
+            summary = self._generate_summary_with_anthropic(full_text)
+        else:
+            summary = self._generate_summary(full_text, slang_findings, sarcasm_findings, top_adjectives)
         logger.info("Generated video summary")
 
         # Extract a representative snippet
@@ -157,6 +179,62 @@ class ConversationalAnalyzer:
             top_adjectives=top_adjectives[:5],  # Limit to top 5 adjectives
             transcript_snippet=snippet
         )
+
+    def _generate_summary_with_anthropic(self, text: str) -> str:
+        """
+        Generate a concise summary of the video content using Anthropic's Claude.
+
+        Args:
+            text: The complete transcript text
+
+        Returns:
+            A concise, contextual summary of the video content
+        """
+        if not text or text == "Analysis failed":
+            return "Analysis failed. No transcript was available to summarize."
+
+        try:
+            logger.info("Generating summary with Anthropic's Claude")
+
+            prompt = f"""
+            You are an expert at summarizing TikTok and short-form video content.
+
+            Below is a transcript from a short video:
+
+            {text}
+
+            Please provide a concise 2-line summary that captures:
+            1. What the video is about (the main topic)
+            2. Any key information, context, or purpose of the video
+
+            Your summary should be clear, informative, and capture the essence of the content.
+            Keep your response to just 2 lines, but make them informative and specific to this content.
+            """
+
+            message = self.anthropic_client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=150,
+                temperature=0.1,
+                system="You are an expert summarizer of short-form video content.",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            summary = message.content[0].text.strip()
+
+            # If the summary is too long, truncate it while preserving sentence boundaries
+            if len(summary.split("\n")) > 2:
+                sentences = re.split(r'(?<=[.!?])\s+', summary)
+                summary = ". ".join(sentences[:2])
+
+            logger.info(f"Generated Anthropic summary: {summary}")
+            return summary
+
+        except Exception as e:
+            logger.error(f"Error generating summary with Anthropic: {str(e)}")
+            # Fall back to the basic summary generation
+            return self._generate_summary(text, [], [], [])
 
     def _identify_slang(self, text: str, segments: List[Dict]) -> List[Dict[str, str]]:
         """
@@ -233,14 +311,26 @@ class ConversationalAnalyzer:
             List of tuples containing (adjective, count)
         """
         try:
-            # Tokenize the text
-            tokens = word_tokenize(text)
+            if not text or len(text.strip()) == 0:
+                logger.warning("Empty text provided for adjective extraction")
+                return []
 
-            # Get POS tags
-            tagged_tokens = pos_tag(tokens)
+            # Tokenize the text - use a more basic approach if NLTK fails
+            try:
+                tokens = word_tokenize(text)
+            except Exception as e:
+                logger.warning(f"NLTK word_tokenize failed: {str(e)}. Using basic tokenization.")
+                # Fallback to basic tokenization
+                tokens = text.split()
 
-            # Extract adjectives (JJ, JJR, JJS tags)
-            adjectives = [word.lower() for word, tag in tagged_tokens if tag.startswith('JJ')]
+            # Get POS tags - if this fails, we'll just return an empty list
+            try:
+                tagged_tokens = pos_tag(tokens)
+                # Extract adjectives (JJ, JJR, JJS tags)
+                adjectives = [word.lower() for word, tag in tagged_tokens if tag.startswith('JJ')]
+            except Exception as e:
+                logger.warning(f"NLTK pos_tag failed: {str(e)}. Cannot extract adjectives.")
+                return []
 
             # Count occurrences
             adjective_counts = Counter(adjectives)
