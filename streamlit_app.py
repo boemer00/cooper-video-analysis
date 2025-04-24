@@ -147,8 +147,8 @@ def load_css():
     [data-testid="stSidebar"] div.st-emotion-cache-5rimss,
     [data-testid="stSidebar"] div.st-emotion-cache-5rimss > div > p,
     [data-testid="stSidebar"] [data-testid="stSlider"] [data-testid="stThumbValue"] {
-        background-color: transparent !important;
-        color: #ff7557 !important;
+        background-color: #24231e !important;
+        color: #24231e !important;
         font-weight: bold !important;
     }
 
@@ -159,7 +159,7 @@ def load_css():
     [data-testid="stSidebar"] [data-testid="stSlider"] div.st-emotion-cache-16j8nww div,
     [data-testid="stSidebar"] [data-testid="stSlider"] div[data-baseweb="slider"] div + div,
     [data-testid="stSidebar"] [data-testid="stSlider"] div[data-baseweb="slider-container"] div {
-        background-color: transparent !important;
+        background-color: #24231e !important;
         color: white !important;
     }
 
@@ -167,14 +167,14 @@ def load_css():
     [data-testid="stSidebar"] [data-testid="stSlider"],
     [data-testid="stSidebar"] [data-testid="stSlider"] > div,
     [data-testid="stSidebar"] [data-testid="stSlider"] > div > div {
-        background-color: transparent !important;
+        background-color: #24231e !important;
     }
 
     /* Fix slider track - the background part (unfilled) */
     [data-testid="stSidebar"] [data-testid="stSlider"] div[role="progressbar"],
     [data-testid="stSidebar"] [data-testid="stSlider"] div[data-baseweb="slider"] > div,
     [data-testid="stSidebar"] [data-testid="stSlider"] div[data-baseweb="slider"] > div > div {
-        background-color: rgba(255, 255, 255, 0.2) !important;
+        background-color: #24231e !important;
     }
 
     /* Fix slider track - the filled part ONLY */
@@ -188,7 +188,7 @@ def load_css():
     [data-testid="stSidebar"] div[data-baseweb="slider"] div div div,
     [data-testid="stSidebar"] [data-testid="stSlider"] div[data-testid="stTickBar"] div,
     [data-testid="stSidebar"] [data-testid="stSlider"] [data-testid="stTrack"] div {
-        background-color: #ff7557 !important;
+        background-color: #24231e !important;
     }
 
     /* Extra overrides for Streamlit styling - more specific to ensure the rule is applied */
@@ -196,7 +196,7 @@ def load_css():
     [data-testid="stSidebar"] div.stSlider [style*="background-color"],
     [data-testid="stSidebar"] div[data-baseweb="slider"] [style*="background-color: rgb"],
     [data-testid="stSidebar"] div[role="slider"] div[style*="background-color"] {
-        background-color: #ff7557 !important;
+        background-color: #24231e !important;
     }
 
     /* Target all elements with inline background styling in the slider */
@@ -291,8 +291,8 @@ with st.form(key="upload_form", clear_on_submit=False):
 
     uploaded = st.file_uploader(
         "Select a video file:",
-        type=["mp4", "mov", "avi", "mkv"],
-        help="Supported formats: mp4, mov, avi, mkv"
+        type=["mp4"],
+        help="Supported formats: mp4"
     )
 
     # Custom styled submit button with HTML/CSS
