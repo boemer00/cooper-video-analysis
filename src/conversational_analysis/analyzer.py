@@ -13,15 +13,24 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Ensure NLTK data is downloaded
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt', quiet=True)
+def download_nltk_data():
+    """Download required NLTK data if it's not already available."""
+    resources = [
+        'punkt',
+        'averaged_perceptron_tagger'
+    ]
 
-try:
-    nltk.data.find('taggers/averaged_perceptron_tagger')
-except LookupError:
-    nltk.download('averaged_perceptron_tagger', quiet=True)
+    for resource in resources:
+        try:
+            nltk.data.find(f'tokenizers/{resource}')
+            logger.info(f"NLTK resource '{resource}' is already available")
+        except LookupError:
+            logger.info(f"Downloading NLTK resource: {resource}")
+            nltk.download(resource, quiet=False)
+            logger.info(f"Successfully downloaded {resource}")
+
+# Download required NLTK data
+download_nltk_data()
 
 @dataclass
 class ConversationalInsights:
@@ -223,20 +232,24 @@ class ConversationalAnalyzer:
         Returns:
             List of tuples containing (adjective, count)
         """
-        # Tokenize the text
-        tokens = word_tokenize(text)
+        try:
+            # Tokenize the text
+            tokens = word_tokenize(text)
 
-        # Get POS tags
-        tagged_tokens = pos_tag(tokens)
+            # Get POS tags
+            tagged_tokens = pos_tag(tokens)
 
-        # Extract adjectives (JJ, JJR, JJS tags)
-        adjectives = [word.lower() for word, tag in tagged_tokens if tag.startswith('JJ')]
+            # Extract adjectives (JJ, JJR, JJS tags)
+            adjectives = [word.lower() for word, tag in tagged_tokens if tag.startswith('JJ')]
 
-        # Count occurrences
-        adjective_counts = Counter(adjectives)
+            # Count occurrences
+            adjective_counts = Counter(adjectives)
 
-        # Return most common adjectives
-        return adjective_counts.most_common(10)  # Get top 10 adjectives
+            # Return most common adjectives
+            return adjective_counts.most_common(10)  # Get top 10 adjectives
+        except Exception as e:
+            logger.error(f"Error extracting adjectives: {str(e)}")
+            return []  # Return empty list on error
 
     def _generate_summary(self, text: str, slang: List[Dict], sarcasm: List[Dict],
                           adjectives: List[Tuple[str, int]]) -> str:
@@ -252,40 +265,50 @@ class ConversationalAnalyzer:
         Returns:
             A two-line summary string
         """
-        # Use a simple extractive approach for the summary
-        # Take first 100 characters and ensure it ends with a full sentence
-        first_part = text[:min(100, len(text))]
-        if len(text) > 100:
-            # Find the last sentence end
-            last_period = max([first_part.rfind('.'), first_part.rfind('!'), first_part.rfind('?')])
-            if last_period > 0:
-                first_part = first_part[:last_period+1]
+        try:
+            # Use a simple extractive approach for the summary
+            # Take first 100 characters and ensure it ends with a full sentence
+            if not text or text == "Analysis failed":
+                return "Analysis failed. No transcript was available to summarize."
 
-        # Create the tone description based on findings
-        tone = "neutral"
-        if len(sarcasm) > 0:
-            tone = "sarcastic"
-        elif len(adjectives) > 0 and adjectives[0][1] > 2:  # If top adjective appears more than twice
-            tone = f"{adjectives[0][0]}"  # Use the most common adjective
+            first_part = text[:min(100, len(text))]
+            if len(text) > 100:
+                # Find the last sentence end
+                last_period = max([first_part.rfind('.'), first_part.rfind('!'), first_part.rfind('?')])
+                if last_period > 0:
+                    first_part = first_part[:last_period+1]
 
-        slang_text = ""
-        if len(slang) > 0:
-            slang_terms = [item["term"] for item in slang[:2]]
-            slang_text = f" using slang like {', '.join(slang_terms)}"
+            # Create the tone description based on findings
+            tone = "neutral"
+            if len(sarcasm) > 0:
+                tone = "sarcastic"
+            elif len(adjectives) > 0 and adjectives[0][1] > 2:  # If top adjective appears more than twice
+                tone = f"{adjectives[0][0]}"  # Use the most common adjective
 
-        second_part = f"The video has a {tone} tone{slang_text} and focuses on "
+            slang_text = ""
+            if len(slang) > 0:
+                slang_terms = [item["term"] for item in slang[:2]]
+                slang_text = f" using slang like {', '.join(slang_terms)}"
 
-        # Extract main subject from text (simple approach - take first 2-3 nouns)
-        tokens = word_tokenize(text[:200])  # Look at first 200 chars for subjects
-        tagged_tokens = pos_tag(tokens)
-        nouns = [word for word, tag in tagged_tokens if tag.startswith('NN')][:3]
+            second_part = f"The video has a {tone} tone{slang_text} and focuses on "
 
-        if nouns:
-            second_part += ', '.join(nouns) + "."
-        else:
-            second_part += "the presented content."
+            # Extract main subject from text (simple approach - take first 2-3 nouns)
+            try:
+                tokens = word_tokenize(text[:200])  # Look at first 200 chars for subjects
+                tagged_tokens = pos_tag(tokens)
+                nouns = [word for word, tag in tagged_tokens if tag.startswith('NN')][:3]
+            except Exception:
+                nouns = []
 
-        return f"{first_part} {second_part}"
+            if nouns:
+                second_part += ', '.join(nouns) + "."
+            else:
+                second_part += "the presented content."
+
+            return f"{first_part} {second_part}"
+        except Exception as e:
+            logger.error(f"Error generating summary: {str(e)}")
+            return "Content summary could not be generated due to an error."
 
     def _extract_snippet(self, segments: List[Dict], slang: List[Dict],
                           sarcasm: List[Dict]) -> str:
