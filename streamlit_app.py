@@ -481,6 +481,13 @@ if uploaded and analyze_btn:
         # Create interactive Plotly visualizations
         st.subheader("Analysis Results")
 
+        # Display conversational analysis results
+        if hasattr(results, 'conversational_insights') and results.conversational_insights:
+            insights = results.conversational_insights
+
+            st.markdown("#### Content Summary")
+            st.markdown(f"**{insights.summary}**")
+
         # Create and display Distribution Analysis plot
         distribution_fig = create_distribution_plot(results.timeline_data)
         st.plotly_chart(distribution_fig, use_container_width=True)
@@ -496,44 +503,6 @@ if uploaded and analyze_btn:
         if facial_fig:
             st.plotly_chart(facial_fig, use_container_width=True)
 
-        # Display conversational analysis results
-        if hasattr(results, 'conversational_insights') and results.conversational_insights:
-            insights = results.conversational_insights
-
-            st.subheader("Content Summary")
-            st.markdown(f"**{insights.summary}**")
-
-            # Create a section for conversational analysis
-            st.subheader("Conversational Analysis")
-
-            # Create columns for a structured display
-            col1, col2 = st.columns([3, 2])
-
-            with col1:
-                # Display transcript snippet
-                if insights.transcript_snippet:
-                    st.markdown("### Representative Snippet")
-                    st.markdown(f"*\"{insights.transcript_snippet}\"*")
-
-                # Display sarcasm findings
-                if insights.sarcasm_detected:
-                    st.markdown("### Sarcasm Detected")
-                    for sarcasm in insights.sarcasm_detected[:3]:  # Limit to top 3
-                        st.markdown(f"- *\"{sarcasm['phrase']}\"* at {sarcasm['timestamp']:.1f}s")
-
-            with col2:
-                # Display slang terms
-                if insights.slang_terms:
-                    st.markdown("### Slang Used")
-                    for slang in insights.slang_terms[:5]:  # Limit to top 5
-                        st.markdown(f"- **{slang['term']}**: {slang['meaning']}")
-
-                # Display top adjectives
-                if insights.top_adjectives:
-                    st.markdown("### Most Used Adjectives")
-                    # Create a DataFrame for the adjectives to display a neat table
-                    adj_df = pd.DataFrame(insights.top_adjectives, columns=["Adjective", "Count"])
-                    st.dataframe(adj_df, use_container_width=True)
 
 # Debug info
 if debug:
