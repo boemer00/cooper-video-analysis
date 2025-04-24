@@ -129,8 +129,8 @@ def load_css():
     }
 
     /* Make sure the file drop zone has a dark background */
-    .stFileUploader [data-testid="stFileDropzone"] {
-        background-color: #2b2b2b !important;
+    .stFileUploader div[data-testid="stFileDropzone"] {
+        background-color: white !important;
     }
 
     /* Add custom slider styling */
@@ -205,6 +205,61 @@ def load_css():
     [data-testid="stSidebar"] [data-testid="stSlider"] *[style*="background-color: rgb(47, 128, 237)"],
     [data-testid="stSidebar"] [data-testid="stSlider"] *[style*="background-color: rgb(79, 143, 247)"] {
         background-color: #ff7557 !important;
+    }
+
+    /* Target the slider track to change blue color */
+    .stSlider [data-testid="stTrack"] {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* Target the slider track's filled portion (blue by default) */
+    .stSlider [data-testid="stTrack"] > div {
+        background-color: #4B8BBE !important;
+    }
+
+    /* Target the slider track to change blue color - more specific selectors */
+    [data-testid="stSidebar"] .stSlider [data-testid="stTrack"] {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* Target the slider track's filled portion with more specific selectors */
+    [data-testid="stSidebar"] .stSlider [data-testid="stTrack"] > div,
+    [data-testid="stSidebar"] .stSlider div[role="progressbar"] > div,
+    [data-testid="stSidebar"] div[data-baseweb="slider"] div[style*="background-color: rgb"],
+    [data-testid="stSidebar"] .stSlider div[style*="background"] {
+        background-color: #4B8BBE !important;
+    }
+
+    /* Override all blue colors in the app */
+    :root {
+        --primary-color: #ff7557 !important;
+    }
+
+    /* Extremely aggressive selectors for the blue slider track */
+    [data-testid="stSidebar"] div[data-baseweb="slider"] div[style*="background-color"],
+    [data-testid="stSidebar"] div[data-baseweb="slider"] div[style*="background"],
+    [data-testid="stSidebar"] div[data-baseweb="slider"] div[role="progressbar"] div,
+    [data-testid="stSidebar"] div[data-baseweb="slider"] div[class*="Track"] div,
+    [data-testid="stSidebar"] div[data-baseweb="slider"] div[class*="filled"],
+    [data-testid="stSidebar"] div[data-baseweb="slider"] div > div > div:first-child,
+    [data-testid="stSidebar"] .stSlider [data-testid="stTrack"] div,
+    [data-testid="stSidebar"] .stSlider div[style*="background-color: rgb"],
+    [data-testid="stSidebar"] .st-emotion-cache-* div[style*="background-color"],
+    div[style*="background-color: rgb(49, 51, 63)"],
+    div[style*="background-color: rgb(0, 104, 201)"],
+    div[style*="background-color: rgb(47, 128, 237)"] {
+        background-color: #ff7557 !important;
+    }
+
+    /* Style the file uploader text */
+    .stFileUploader div[data-testid="stFileDropzone"] p,
+    .stFileUploader div[data-testid="stFileDropzone"] small,
+    .stFileUploader div[data-testid="stFileDropzone"] svg,
+    .stFileUploader div[data-testid="stFileDropzone"] span,
+    .stFileUploader div[data-testid="stFileDropzone"] div,
+    .stFileUploader div[data-testid="stFileDropzone"] div p {
+        color: white !important;
+        fill: #333333 !important;
     }
     """
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
@@ -282,7 +337,60 @@ with st.form(key="upload_form", clear_on_submit=False):
 
         /* Background color for the dropzone */
         .stFileUploader div[data-testid="stFileDropzone"] {
-            background-color: #2b2b2b !important;
+            background-color: white !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Add custom CSS for the dropzone
+    st.markdown(
+        """
+        <style>
+        /* Style the file uploader text */
+        .stFileUploader div[data-testid="stFileDropzone"] p,
+        .stFileUploader div[data-testid="stFileDropzone"] small,
+        .stFileUploader div[data-testid="stFileDropzone"] svg,
+        .stFileUploader div[data-testid="stFileDropzone"] span,
+        .stFileUploader div[data-testid="stFileDropzone"] div,
+        .stFileUploader div[data-testid="stFileDropzone"] div p {
+            color: #333333 !important;
+            fill: #333333 !important;
+        }
+
+        /* Background color for the dropzone */
+        .stFileUploader div[data-testid="stFileDropzone"] {
+            background-color: white !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Fixed CSS for file uploader with ultra-specific selectors
+    st.markdown(
+        """
+        <style>
+        /* Super specific selectors for file uploader text */
+        section[data-testid="stFileUploadDropzone"] div p,
+        section[data-testid="stFileUploadDropzone"] div span,
+        section[data-testid="stFileUploadDropzone"] small,
+        div[data-testid="stFileDropzone"] p,
+        div[data-testid="stFileDropzone"] span,
+        div[data-testid="stFileDropzone"] small,
+        [data-testid="stFileDropzoneInstructions"] p,
+        [data-testid="stFileDropzoneInstructions"] span,
+        [data-testid="stFileDropzoneInstructions"] small {
+            color: #333333 !important;
+            fill: #333333 !important;
+        }
+
+        /* Super specific selector for file uploader background */
+        section[data-testid="stFileUploadDropzone"],
+        [data-testid="stFileDropzone"] {
+            background-color: white !important;
+            border: 1px dashed #cccccc !important;
         }
         </style>
         """,
