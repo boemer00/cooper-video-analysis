@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from .preprocessing import extract_audio, AssemblyAIAnalyzer
 from .visualization import Visualizer, TimelineData
 from .inference import FacialEmotionAnalyzer
+from .conversational_analysis import ConversationalAnalyzer, ConversationalInsights
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,6 +22,7 @@ class AnalysisResults:
     audio_scores: Dict
     facial_scores: Dict
     timeline_data: TimelineData
+    conversational_insights: Optional[ConversationalInsights] = None
     timeline_plot_bytes: Optional[str] = None
     dist_plot_bytes: Optional[str] = None
 
@@ -41,6 +43,7 @@ class AssemblyAIPipeline:
         self.assemblyai_analyzer = AssemblyAIAnalyzer(api_key=api_key)
         self.facial_analyzer = FacialEmotionAnalyzer()
         self.visualizer = Visualizer()
+        self.conversational_analyzer = ConversationalAnalyzer()
 
     def analyze(
         self,
@@ -155,12 +158,30 @@ class AssemblyAIPipeline:
         logger.info(f"Audio emotion scores: {', '.join([f'{k}={v:.2f}' for k, v in avg_emotions.items()])}")
         logger.info(f"Facial emotion scores: {', '.join([f'{k}={v:.2f}' for k, v in avg_facial_emotions.items()])}")
 
+        # Add conversational analysis
+        logger.info("Performing conversational flow analysis...")
+        try:
+            conversational_insights = self.conversational_analyzer.analyze_transcript(full_text, segments)
+            logger.info("Conversational analysis complete")
+        except Exception as e:
+            logger.error(f"Conversational analysis failed: {str(e)}")
+            # Provide minimal fallback results if analysis fails
+            conversational_insights = ConversationalInsights(
+                summary="Analysis failed.",
+                sarcasm_detected=[],
+                slang_terms=[],
+                top_adjectives=[],
+                transcript_snippet=""
+            )
+            logger.warning("Using fallback results due to conversational analysis failure")
+
         # Prepare the result object
         results = AnalysisResults(
             text_scores={"positive": avg_positive, "negative": avg_negative},
             audio_scores=avg_emotions,
             facial_scores=avg_facial_emotions,
-            timeline_data=timeline_data
+            timeline_data=timeline_data,
+            conversational_insights=conversational_insights
         )
 
         # Generate plots if requested

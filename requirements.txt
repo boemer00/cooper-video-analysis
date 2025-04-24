@@ -16,3 +16,4 @@ watchdog==4.0.0
 plotly==5.18.0
 pandas==2.1.1
 opencv-python==4.8.1.78
+nltk==3.8.1
