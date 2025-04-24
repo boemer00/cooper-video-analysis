@@ -481,6 +481,13 @@ if uploaded and analyze_btn:
         # Create interactive Plotly visualizations
         st.subheader("Analysis Results")
 
+        # Display conversational analysis results
+        if hasattr(results, 'conversational_insights') and results.conversational_insights:
+            insights = results.conversational_insights
+
+            st.markdown("#### Content Summary")
+            st.markdown(f"**{insights.summary}**")
+
         # Create and display Distribution Analysis plot
         distribution_fig = create_distribution_plot(results.timeline_data)
         st.plotly_chart(distribution_fig, use_container_width=True)
@@ -495,6 +502,7 @@ if uploaded and analyze_btn:
         # Only display facial emotion if we have data
         if facial_fig:
             st.plotly_chart(facial_fig, use_container_width=True)
+
 
 # Debug info
 if debug:
