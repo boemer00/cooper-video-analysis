@@ -11,7 +11,13 @@ import pandas as pd
 import plotly.express as px
 from dotenv import load_dotenv
 from src.pipeline_assemblyai import analyze_with_assemblyai
-from src.visualization.plotly_visualizer import create_distribution_plot, create_timeline_plots
+from plot_vizualizer import (
+    create_distribution_plot,
+    create_timeline_plots,
+    create_emotion_trends_plot,
+    create_emotional_contagion_heatmap,
+    create_emotion_transition_network_plot,
+)
 
 # Page configuration MUST be the first Streamlit command
 st.set_page_config(
@@ -20,6 +26,30 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Check for required NLTK resources (for TextBlob)
+try:
+    # Only import these when needed
+    import nltk
+    from textblob import TextBlob
+    # Try a simple operation that requires the NLTK data
+    TextBlob("Test").words
+except Exception as e:
+    if "MissingCorpusError" in str(e) or "resource" in str(e).lower():
+        st.error("""
+        ### Missing NLTK Resources
+
+        Some required NLTK resources are missing. Please run the setup script:
+        ```
+        python setup_nltk.py
+        ```
+
+        Error details: {}
+        """.format(str(e)))
+        st.stop()
+    else:
+        # It's another kind of error, just log it
+        logging.error(f"Error checking NLTK resources: {e}")
 
 # Custom CSS for styling
 def load_css():
@@ -492,16 +522,25 @@ if uploaded and analyze_btn:
         distribution_fig = create_distribution_plot(results.timeline_data)
         st.plotly_chart(distribution_fig, use_container_width=True)
 
-        # Create and display Timeline Analysis plots
-        text_fig, voice_fig, facial_fig = create_timeline_plots(results.timeline_data)
+        # --- Emotion Analysis Visualization ---
 
-        # Display each timeline figure with its own legend
-        st.plotly_chart(text_fig, use_container_width=True)
-        st.plotly_chart(voice_fig, use_container_width=True)
+        # Emotion Transition Network
+        st.subheader("Emotion Transition Network")
+        transition_fig = create_emotion_transition_network_plot(
+            comments=results.comments
+        )
+        st.plotly_chart(transition_fig, use_container_width=True)
 
-        # Only display facial emotion if we have data
-        if facial_fig:
-            st.plotly_chart(facial_fig, use_container_width=True)
+        # # Create and display Timeline Analysis plots
+        # text_fig, voice_fig, facial_fig = create_timeline_plots(results.timeline_data)
+
+        # # Display each timeline figure with its own legend
+        # st.plotly_chart(text_fig, use_container_width=True)
+        # st.plotly_chart(voice_fig, use_container_width=True)
+
+        # # Only display facial emotion if we have data
+        # if facial_fig:
+        #     st.plotly_chart(facial_fig, use_container_width=True)
 
 
 # Debug info
