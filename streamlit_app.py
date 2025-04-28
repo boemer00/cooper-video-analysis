@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 import base64
+import time
 
 import streamlit as st
 import pandas as pd
@@ -18,6 +19,8 @@ from plot_vizualizer import (
     create_emotional_contagion_heatmap,
     create_emotion_transition_network_plot,
 )
+# Import Shein comments analysis
+from shein_analysis import get_shein_analysis_for_streamlit
 
 # Page configuration MUST be the first Streamlit command
 st.set_page_config(
@@ -323,6 +326,11 @@ api_key = os.getenv("ASSEMBLYAI_API_KEY") or st.sidebar.text_input(
     help="Get your key at https://www.assemblyai.com/"
 )
 
+# Check for Anthropic API key
+anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+if not anthropic_api_key:
+    st.sidebar.warning("⚠️ Anthropic API key not found. Shein analysis will be limited.")
+
 # Remove API key verification display
 if not api_key:
     st.sidebar.error("❌ API Key missing")
@@ -344,204 +352,338 @@ debug = st.sidebar.checkbox("Enable Debug Mode")
 
 # Main UI
 st.markdown('<div id="custom-title"><h1 style="color: #ff7557 !important; font-weight: bold; font-size: 2.5rem;">Video Sentiment Analysis 📱</h1></div>', unsafe_allow_html=True)
-st.markdown(
-    "Analyze short-form video sentiment and emotions using AI."
-)
 
-# File upload within form
-with st.form(key="upload_form", clear_on_submit=False):
-    # Add custom CSS for the dropzone
-    st.markdown(
-        """
-        <style>
-        /* Style the file uploader text */
-        .stFileUploader div[data-testid="stFileDropzone"] p,
-        .stFileUploader div[data-testid="stFileDropzone"] small,
-        .stFileUploader div[data-testid="stFileDropzone"] svg,
-        .stFileUploader div[data-testid="stFileDropzone"] span,
-        .stFileUploader div[data-testid="stFileDropzone"] div,
-        .stFileUploader div[data-testid="stFileDropzone"] div p {
-            color: white !important;
-            fill: white !important;
-        }
+# Add tabs for different types of analysis
+tab1, tab2 = st.tabs(["Video Analysis", "Shein Comments Analysis"])
 
-        /* Background color for the dropzone */
-        .stFileUploader div[data-testid="stFileDropzone"] {
-            background-color: white !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+with tab1:
+    st.markdown("Analyze short-form video sentiment and emotions using AI.")
 
-    # Add custom CSS for the dropzone
-    st.markdown(
-        """
-        <style>
-        /* Style the file uploader text */
-        .stFileUploader div[data-testid="stFileDropzone"] p,
-        .stFileUploader div[data-testid="stFileDropzone"] small,
-        .stFileUploader div[data-testid="stFileDropzone"] svg,
-        .stFileUploader div[data-testid="stFileDropzone"] span,
-        .stFileUploader div[data-testid="stFileDropzone"] div,
-        .stFileUploader div[data-testid="stFileDropzone"] div p {
-            color: #333333 !important;
-            fill: #333333 !important;
-        }
+    # File upload within form
+    with st.form(key="upload_form", clear_on_submit=False):
+        # Add custom CSS for the dropzone
+        st.markdown(
+            """
+            <style>
+            /* Style the file uploader text */
+            .stFileUploader div[data-testid="stFileDropzone"] p,
+            .stFileUploader div[data-testid="stFileDropzone"] small,
+            .stFileUploader div[data-testid="stFileDropzone"] svg,
+            .stFileUploader div[data-testid="stFileDropzone"] span,
+            .stFileUploader div[data-testid="stFileDropzone"] div,
+            .stFileUploader div[data-testid="stFileDropzone"] div p {
+                color: white !important;
+                fill: white !important;
+            }
 
-        /* Background color for the dropzone */
-        .stFileUploader div[data-testid="stFileDropzone"] {
-            background-color: white !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # Fixed CSS for file uploader with ultra-specific selectors
-    st.markdown(
-        """
-        <style>
-        /* Super specific selectors for file uploader text */
-        section[data-testid="stFileUploadDropzone"] div p,
-        section[data-testid="stFileUploadDropzone"] div span,
-        section[data-testid="stFileUploadDropzone"] small,
-        div[data-testid="stFileDropzone"] p,
-        div[data-testid="stFileDropzone"] span,
-        div[data-testid="stFileDropzone"] small,
-        [data-testid="stFileDropzoneInstructions"] p,
-        [data-testid="stFileDropzoneInstructions"] span,
-        [data-testid="stFileDropzoneInstructions"] small {
-            color: #333333 !important;
-            fill: #333333 !important;
-        }
-
-        /* Super specific selector for file uploader background */
-        section[data-testid="stFileUploadDropzone"],
-        [data-testid="stFileDropzone"] {
-            background-color: white !important;
-            border: 1px dashed #cccccc !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    uploaded = st.file_uploader(
-        "Select a video file:",
-        type=["mp4"],
-        help="Supported formats: mp4"
-    )
-
-    # Custom styled submit button with HTML/CSS
-    st.markdown(
-        f"""
-        <style>
-        div[data-testid="stFormSubmitButton"] > button {{
-            background-color: #ff7557 !important;
-            color: white !important;
-            border: none !important;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    analyze_btn = st.form_submit_button(
-        "Analyze",
-        use_container_width=False
-    )
-
-results = None  # initialize results
-
-if uploaded and analyze_btn:
-    # Save to temp file
-    suffix = Path(uploaded.name).suffix
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-    try:
-        tmp.write(uploaded.read())
-        video_path = tmp.name
-
-        # Create output directory
-        dirs = Path("./streamlit_output")
-        dirs.mkdir(exist_ok=True)
-
-        # Analysis
-        with st.spinner("Analyzing..."):
-            try:
-                # Validate key
-                if len(api_key) < 10:
-                    raise ValueError("Invalid API key format.")
-
-                # Create masked key for debug display only
-                masked_key = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "***"
-
-                # Show more detailed debugging info
-                if debug:
-                    st.info(f"Using API key: {masked_key}")
-                    st.info(f"Analyzing video: {uploaded.name} ({uploaded.size/(1024**2):.2f} MB)")
-                    st.info(f"Temporary file: {video_path}")
-                    st.info(f"Output directory: {dirs}")
-                    st.info(f"Facial sampling rate: {facial_sampling_rate} second(s)")
-
-                results = analyze_with_assemblyai(
-                    video_path, str(dirs), api_key=api_key,
-                    facial_sampling_rate=facial_sampling_rate
-                )
-                st.success("✅ Analysis Complete!")
-
-            except Exception as e:
-                st.error(f"Error: {e}")
-                logger.error("Analysis failed", exc_info=True)
-                if debug:
-                    st.exception(e)
-
-    finally:
-        # Clean up temp file if created
-        try:
-            if 'video_path' in locals():
-                os.remove(video_path)
-                if debug:
-                    st.write(f"Removed temp file: {video_path}")
-        except Exception as cleanup_e:
-            logger.warning(f"Could not remove temp file: {cleanup_e}")
-
-    # Display
-    if results:
-        # Create interactive Plotly visualizations
-        st.subheader("Analysis Results")
-
-        # Display conversational analysis results
-        if hasattr(results, 'conversational_insights') and results.conversational_insights:
-            insights = results.conversational_insights
-
-            st.markdown("#### Content Summary")
-            st.markdown(f"**{insights.summary}**")
-
-        # Create and display Distribution Analysis plot
-        distribution_fig = create_distribution_plot(results.timeline_data)
-        st.plotly_chart(distribution_fig, use_container_width=True)
-
-        # --- Emotion Analysis Visualization ---
-
-        # Emotion Transition Network
-        st.subheader("Emotion Transition Network")
-        transition_fig = create_emotion_transition_network_plot(
-            comments=results.comments
+            /* Background color for the dropzone */
+            .stFileUploader div[data-testid="stFileDropzone"] {
+                background-color: white !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
         )
-        st.plotly_chart(transition_fig, use_container_width=True)
 
-        # # Create and display Timeline Analysis plots
-        # text_fig, voice_fig, facial_fig = create_timeline_plots(results.timeline_data)
+        # Add custom CSS for the dropzone
+        st.markdown(
+            """
+            <style>
+            /* Style the file uploader text */
+            .stFileUploader div[data-testid="stFileDropzone"] p,
+            .stFileUploader div[data-testid="stFileDropzone"] small,
+            .stFileUploader div[data-testid="stFileDropzone"] svg,
+            .stFileUploader div[data-testid="stFileDropzone"] span,
+            .stFileUploader div[data-testid="stFileDropzone"] div,
+            .stFileUploader div[data-testid="stFileDropzone"] div p {
+                color: #333333 !important;
+                fill: #333333 !important;
+            }
 
-        # # Display each timeline figure with its own legend
-        # st.plotly_chart(text_fig, use_container_width=True)
-        # st.plotly_chart(voice_fig, use_container_width=True)
+            /* Background color for the dropzone */
+            .stFileUploader div[data-testid="stFileDropzone"] {
+                background-color: white !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
 
-        # # Only display facial emotion if we have data
-        # if facial_fig:
-        #     st.plotly_chart(facial_fig, use_container_width=True)
+        # Fixed CSS for file uploader with ultra-specific selectors
+        st.markdown(
+            """
+            <style>
+            /* Super specific selectors for file uploader text */
+            section[data-testid="stFileUploadDropzone"] div p,
+            section[data-testid="stFileUploadDropzone"] div span,
+            section[data-testid="stFileUploadDropzone"] small,
+            div[data-testid="stFileDropzone"] p,
+            div[data-testid="stFileDropzone"] span,
+            div[data-testid="stFileDropzone"] small,
+            [data-testid="stFileDropzoneInstructions"] p,
+            [data-testid="stFileDropzoneInstructions"] span,
+            [data-testid="stFileDropzoneInstructions"] small {
+                color: #333333 !important;
+                fill: #333333 !important;
+            }
 
+            /* Super specific selector for file uploader background */
+            section[data-testid="stFileUploadDropzone"],
+            [data-testid="stFileDropzone"] {
+                background-color: white !important;
+                border: 1px dashed #cccccc !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+        uploaded = st.file_uploader(
+            "Select a video file:",
+            type=["mp4"],
+            help="Supported formats: mp4"
+        )
+
+        # Custom styled submit button with HTML/CSS
+        st.markdown(
+            f"""
+            <style>
+            div[data-testid="stFormSubmitButton"] > button {{
+                background-color: #ff7557 !important;
+                color: white !important;
+                border: none !important;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+        analyze_btn = st.form_submit_button(
+            "Analyze",
+            use_container_width=False
+        )
+
+    results = None  # initialize results
+
+    if uploaded and analyze_btn:
+        # Save to temp file
+        suffix = Path(uploaded.name).suffix
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        try:
+            tmp.write(uploaded.read())
+            video_path = tmp.name
+
+            # Create output directory
+            dirs = Path("./streamlit_output")
+            dirs.mkdir(exist_ok=True)
+
+            # Analysis
+            with st.spinner("Analyzing..."):
+                try:
+                    # Validate key
+                    if len(api_key) < 10:
+                        raise ValueError("Invalid API key format.")
+
+                    # Create masked key for debug display only
+                    masked_key = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "***"
+
+                    # Show more detailed debugging info
+                    if debug:
+                        st.info(f"Using API key: {masked_key}")
+                        st.info(f"Analyzing video: {uploaded.name} ({uploaded.size/(1024**2):.2f} MB)")
+                        st.info(f"Temporary file: {video_path}")
+                        st.info(f"Output directory: {dirs}")
+                        st.info(f"Facial sampling rate: {facial_sampling_rate} second(s)")
+
+                    results = analyze_with_assemblyai(
+                        video_path, str(dirs), api_key=api_key,
+                        facial_sampling_rate=facial_sampling_rate
+                    )
+                    st.success("✅ Analysis Complete!")
+
+                except Exception as e:
+                    st.error(f"Error: {e}")
+                    logger.error("Analysis failed", exc_info=True)
+                    if debug:
+                        st.exception(e)
+
+        finally:
+            # Clean up temp file if created
+            try:
+                if 'video_path' in locals():
+                    os.remove(video_path)
+                    if debug:
+                        st.write(f"Removed temp file: {video_path}")
+            except Exception as cleanup_e:
+                logger.warning(f"Could not remove temp file: {cleanup_e}")
+
+        # Display
+        if results:
+            # Create interactive Plotly visualizations
+            st.subheader("Analysis Results")
+
+            # Display conversational analysis results
+            if hasattr(results, 'conversational_insights') and results.conversational_insights:
+                insights = results.conversational_insights
+
+                st.markdown("#### Content Summary")
+                st.markdown(f"**{insights.summary}**")
+
+            # Create and display Distribution Analysis plot
+            distribution_fig = create_distribution_plot(results.timeline_data)
+            st.plotly_chart(distribution_fig, use_container_width=True)
+
+            # --- Emotion Analysis Visualization ---
+
+            # Emotion Transition Network
+            st.subheader("Emotion Transition Network")
+            transition_fig = create_emotion_transition_network_plot(
+                comments=results.comments
+            )
+            st.plotly_chart(transition_fig, use_container_width=True)
+
+with tab2:
+    st.markdown("<h2 style='color: #ff7557; font-weight: bold;'>Shein Comments Emotional Analysis</h2>", unsafe_allow_html=True)
+    st.markdown("Analyze TikTok comments about Shein products to understand emotional reactions and sentiment.")
+
+    # Add a brief explanation
+    with st.expander("About this analysis"):
+        st.markdown("""
+        This analysis examines TikTok comments about Shein products (primarily swimwear) to:
+
+        - Generate an AI-powered emotional summary of customer sentiments
+        - Identify the top adjectives used in comments
+        - Extract words related to emotions and feelings about the brand
+        - Visualize the emotional distribution across comments
+
+        The analysis uses Anthropic Claude for natural language understanding and NRCLex for emotion detection.
+        """)
+
+    # Create a cleaner button with center alignment
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        analyze_btn = st.button("Run Shein Comments Analysis", type="primary", use_container_width=True)
+
+    # If button is clicked, run the analysis
+    if analyze_btn:
+        # Show a progress bar
+        progress_bar = st.progress(0)
+
+        # Step 1: Extract comments
+        with st.spinner("Extracting comments..."):
+            progress_bar.progress(20)
+            st.markdown("**Step 1/3:** Extracting comments from sample data...")
+            time.sleep(0.5)  # Small delay for better UX
+
+        # Step 2: Analyze comments
+        with st.spinner("Analyzing with Claude AI..."):
+            progress_bar.progress(50)
+            st.markdown("**Step 2/3:** Generating emotional insights with Claude AI...")
+            time.sleep(0.5)  # Small delay for better UX
+
+        # Step 3: Create visualizations
+        with st.spinner("Creating visualizations..."):
+            progress_bar.progress(80)
+            st.markdown("**Step 3/3:** Creating emotion visualizations...")
+
+            # Get the analysis results
+            analysis_results = get_shein_analysis_for_streamlit()
+            progress_bar.progress(100)
+
+        # Clear the progress indicators
+        progress_placeholder = st.empty()
+
+        # Display results
+        if analysis_results["success"]:
+            # Get comment count from analysis results
+            comment_count = analysis_results["comment_count"]
+
+            # Show success message with comment count
+            st.success(f"Extracted {comment_count} comments.")
+
+            # Show demo mode notice if applicable
+            if analysis_results["using_demo"]:
+                st.info("📝 Running in demo mode with sample data. For full functionality, add your Anthropic API key to the .env file.")
+
+            # Add expandable section for sample comments
+            with st.expander("View sample comments"):
+                for i in range(min(10, comment_count)):
+                    st.markdown(f"- Sample comment #{i+1}")
+                if comment_count > 10:
+                    st.markdown(f"*...and {comment_count - 10} more*")
+
+            # Create a two-column layout for the emotional summary and distribution
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # Emotional Summary header - salmon color
+                st.markdown("<h3 style='color: #ff7557;'>Emotional Summary</h3>", unsafe_allow_html=True)
+
+                # Summary with bold label
+                st.markdown("<b>Summary:</b> " + analysis_results["summary_fig"].layout.annotations[1].text.replace("<b>Summary:</b> ", ""), unsafe_allow_html=True)
+
+                # Top Adjectives with bold label
+                st.markdown("<b>Top Adjectives:</b> " + analysis_results["summary_fig"].layout.annotations[2].text.replace("<b>Top Adjectives:</b> ", ""), unsafe_allow_html=True)
+
+                # Emotional Words with bold label
+                st.markdown("<b>Emotional Words:</b> " + analysis_results["summary_fig"].layout.annotations[3].text.replace("<b>Emotional Words:</b> ", ""), unsafe_allow_html=True)
+
+            with col2:
+                # Emotion Distribution header - salmon color
+                st.markdown("<h3 style='color: #ff7557;'>Emotion Distribution</h3>", unsafe_allow_html=True)
+
+                # Display the emotion distribution plot
+                st.plotly_chart(analysis_results["emotion_fig"], use_container_width=True)
+
+            # Add a separation line
+            st.markdown("---")
+
+            # Add a download section
+            st.subheader("Download Results")
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # Create a download button for a report (placeholder)
+                st.download_button(
+                    label="Download Summary (PDF)",
+                    data=b"Placeholder for PDF report",  # This would be replaced with actual PDF data
+                    file_name="shein_analysis_summary.pdf",
+                    mime="application/pdf",
+                    disabled=True  # Disabled for now since we don't have actual PDF generation
+                )
+
+            with col2:
+                # Create a download button for raw data (placeholder)
+                st.download_button(
+                    label="Download Raw Data (CSV)",
+                    data=b"Placeholder for CSV data",  # This would be replaced with actual CSV data
+                    file_name="shein_analysis_data.csv",
+                    mime="text/csv",
+                    disabled=True  # Disabled for now since we don't have actual CSV generation
+                )
+
+        else:
+            st.error(f"Analysis failed: {analysis_results['error']}")
+
+            if not anthropic_api_key:
+                st.warning("""
+                No Anthropic API key found. To enable full analysis:
+                1. Get an API key from https://www.anthropic.com/
+                2. Add it to your .env file as ANTHROPIC_API_KEY=your_key_here
+                """)
+    else:
+        # Show a placeholder with sample image when no analysis is running
+        st.info("Click the button above to analyze Shein comments and generate insights.")
+
+        # Placeholder for when no analysis is running
+        placeholder_col1, placeholder_col2 = st.columns(2)
+        with placeholder_col1:
+            st.markdown("### Emotional Summary")
+            st.markdown("Analysis will show sentiment summary, top adjectives, and emotional words about Shein.")
+
+        with placeholder_col2:
+            st.markdown("### Emotion Distribution")
+            st.markdown("Analysis will show the distribution of emotions across all comments.")
 
 # Debug info
 if debug:
