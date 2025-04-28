@@ -2,7 +2,7 @@
 import os
 import logging
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 import tempfile
 from dataclasses import dataclass
 
@@ -25,6 +25,7 @@ class AnalysisResults:
     conversational_insights: Optional[ConversationalInsights] = None
     timeline_plot_bytes: Optional[str] = None
     dist_plot_bytes: Optional[str] = None
+    comments: Optional[List[Dict]] = None
 
 class AssemblyAIPipeline:
     """Pipeline using AssemblyAI for video sentiment and emotion analysis."""
@@ -181,7 +182,16 @@ class AssemblyAIPipeline:
             audio_scores=avg_emotions,
             facial_scores=avg_facial_emotions,
             timeline_data=timeline_data,
-            conversational_insights=conversational_insights
+            conversational_insights=conversational_insights,
+            # Convert transcript segments to comments format expected by plotly visualizer
+            comments=[
+                {
+                    "create_time": segment.get("start", 0),  # Use start time as creation time
+                    "text": segment.get("text", "").strip()  # Use segment text
+                }
+                for segment in segments
+                if segment.get("text", "").strip()  # Skip empty segments
+            ]
         )
 
         # Generate plots if requested
