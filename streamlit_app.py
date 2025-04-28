@@ -35,8 +35,8 @@ try:
     # Only import these when needed
     import nltk
     from textblob import TextBlob
-    # Try a simple operation that requires the NLTK data
-    TextBlob("Test").words
+    # Try a simple operation that requires the NLTK data - do this without displaying output
+    _ = TextBlob("Test").words  # Assign to _ to prevent displaying in UI
 except Exception as e:
     if "MissingCorpusError" in str(e) or "resource" in str(e).lower():
         st.error("""
@@ -543,26 +543,26 @@ with tab1:
             st.plotly_chart(transition_fig, use_container_width=True)
 
 with tab2:
-    st.markdown("<h2 style='color: #ff7557; font-weight: bold;'>Shein Comments Emotional Analysis</h2>", unsafe_allow_html=True)
-    st.markdown("Analyze TikTok comments about Shein products to understand emotional reactions and sentiment.")
+    # st.markdown("<h2 style='color: #ff7557; font-weight: bold;'>Shein Comments Emotional Analysis</h2>", unsafe_allow_html=True)
+    st.markdown("Analyze TikTok comments to understand emotional reactions and sentiment.")
 
-    # Add a brief explanation
-    with st.expander("About this analysis"):
-        st.markdown("""
-        This analysis examines TikTok comments about Shein products (primarily swimwear) to:
+    # # Add a brief explanation
+    # with st.expander("About this analysis"):
+    #     st.markdown("""
+    #     This analysis examines TikTok comments about Shein products (primarily swimwear) to:
 
-        - Generate an AI-powered emotional summary of customer sentiments
-        - Identify the top adjectives used in comments
-        - Extract words related to emotions and feelings about the brand
-        - Visualize the emotional distribution across comments
+    #     - Generate an AI-powered emotional summary of customer sentiments
+    #     - Identify the top adjectives used in comments
+    #     - Extract words related to emotions and feelings about the brand
+    #     - Visualize the emotional distribution across comments
 
-        The analysis uses Anthropic Claude for natural language understanding and NRCLex for emotion detection.
-        """)
+    #     The analysis uses Anthropic Claude for natural language understanding and NRCLex for emotion detection.
+    #     """)
 
     # Create a cleaner button with center alignment
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        analyze_btn = st.button("Run Shein Comments Analysis", type="primary", use_container_width=True)
+        analyze_btn = st.button("Run Comments Analysis", type="primary", use_container_width=True)
 
     # If button is clicked, run the analysis
     if analyze_btn:
@@ -572,19 +572,19 @@ with tab2:
         # Step 1: Extract comments
         with st.spinner("Extracting comments..."):
             progress_bar.progress(20)
-            st.markdown("**Step 1/3:** Extracting comments from sample data...")
+            st.markdown("**Step 1/3:** Extracting comments from video...")
             time.sleep(0.5)  # Small delay for better UX
 
         # Step 2: Analyze comments
         with st.spinner("Analyzing with Claude AI..."):
             progress_bar.progress(50)
-            st.markdown("**Step 2/3:** Generating emotional insights with Claude AI...")
+            st.markdown("**Step 2/3:** Generating insights...")
             time.sleep(0.5)  # Small delay for better UX
 
         # Step 3: Create visualizations
         with st.spinner("Creating visualizations..."):
             progress_bar.progress(80)
-            st.markdown("**Step 3/3:** Creating emotion visualizations...")
+            st.markdown("**Step 3/3:** Creating visualizations...")
 
             # Get the analysis results
             analysis_results = get_shein_analysis_for_streamlit()
@@ -673,7 +673,7 @@ with tab2:
                 """)
     else:
         # Show a placeholder with sample image when no analysis is running
-        st.info("Click the button above to analyze Shein comments and generate insights.")
+        # st.info("Click the button above to analyze comments and generate insights.")
 
         # Placeholder for when no analysis is running
         placeholder_col1, placeholder_col2 = st.columns(2)

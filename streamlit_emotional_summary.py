@@ -1,5 +1,5 @@
 """
-Streamlit app for Shein Comments Emotional Analysis
+Streamlit app for Comments Emotional Analysis
 
 Run with:
     streamlit run streamlit_emotional_summary.py
@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 # Page configuration
 st.set_page_config(
-    page_title="Shein Comments Emotional Analysis",
+    page_title="Comments Emotional Analysis",
     page_icon="📊",
     layout="wide"
 )
@@ -52,8 +52,7 @@ if not api_key:
     st.error("⚠️ Anthropic API key not found. Please add it to your .env file as ANTHROPIC_API_KEY")
 
 # Title and description
-st.title("Shein Comments Emotional Analysis")
-st.markdown("Analyze TikTok comments about Shein products to understand emotional reactions and sentiment.")
+st.markdown("Analyze comments to understand emotional reactions and sentiment.")
 
 # Sidebar
 st.sidebar.image("static/cooper_logo.png", width=200)
