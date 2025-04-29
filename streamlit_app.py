@@ -337,27 +337,27 @@ if not api_key:
     st.error("🔑 API key is required.")
     st.stop()
 
-# Analysis options
-st.sidebar.markdown('<div style="color: #ff7557; font-size: 20px; font-weight: bold; margin-bottom: 10px;">Analysis Options</div>', unsafe_allow_html=True)
+# # Analysis options
+# st.sidebar.markdown('<div style="color: #ff7557; font-size: 20px; font-weight: bold; margin-bottom: 10px;">Analysis Options</div>', unsafe_allow_html=True)
 
-facial_sampling_rate = st.sidebar.slider(
-    "Facial Analysis Sampling Rate (seconds)",
-    min_value=1,
-    max_value=5,
-    value=1,
-    help="Sample 1 frame every N seconds for facial emotion analysis. Higher values are faster but less precise."
-)
+# facial_sampling_rate = st.sidebar.slider(
+#     "Facial Analysis Sampling Rate (seconds)",
+#     min_value=1,
+#     max_value=5,
+#     value=1,
+#     help="Sample 1 frame every N seconds for facial emotion analysis. Higher values are faster but less precise."
+# )
 
 debug = st.sidebar.checkbox("Enable Debug Mode")
 
 # Main UI
-st.markdown('<div id="custom-title"><h1 style="color: #ff7557 !important; font-weight: bold; font-size: 2.5rem;">Video Sentiment Analysis 📱</h1></div>', unsafe_allow_html=True)
+st.markdown('<div id="custom-title"><h1 style="color: #ff7557 !important; font-weight: bold; font-size: 2.5rem;"> ♾️ Hey, Sheila!</h1></div>', unsafe_allow_html=True)
 
 # Add tabs for different types of analysis
-tab1, tab2 = st.tabs(["Video Analysis", "Shein Comments Analysis"])
+tab1, tab2 = st.tabs(["Video Analysis", "Comments Analysis"])
 
 with tab1:
-    st.markdown("Analyze short-form video sentiment and emotions using AI.")
+    st.markdown("Analyze short-form video emotions.")
 
     # File upload within form
     with st.form(key="upload_form", clear_on_submit=False):
@@ -493,11 +493,11 @@ with tab1:
                         st.info(f"Analyzing video: {uploaded.name} ({uploaded.size/(1024**2):.2f} MB)")
                         st.info(f"Temporary file: {video_path}")
                         st.info(f"Output directory: {dirs}")
-                        st.info(f"Facial sampling rate: {facial_sampling_rate} second(s)")
+                        st.info(f"Facial sampling rate: {1} second(s)")
 
                     results = analyze_with_assemblyai(
                         video_path, str(dirs), api_key=api_key,
-                        facial_sampling_rate=facial_sampling_rate
+                        facial_sampling_rate=1
                     )
                     st.success("✅ Analysis Complete!")
 
@@ -544,24 +544,11 @@ with tab1:
 
 with tab2:
     # st.markdown("<h2 style='color: #ff7557; font-weight: bold;'>Shein Comments Emotional Analysis</h2>", unsafe_allow_html=True)
-    st.markdown("Analyze TikTok comments to understand emotional reactions and sentiment.")
-
-    # # Add a brief explanation
-    # with st.expander("About this analysis"):
-    #     st.markdown("""
-    #     This analysis examines TikTok comments about Shein products (primarily swimwear) to:
-
-    #     - Generate an AI-powered emotional summary of customer sentiments
-    #     - Identify the top adjectives used in comments
-    #     - Extract words related to emotions and feelings about the brand
-    #     - Visualize the emotional distribution across comments
-
-    #     The analysis uses Anthropic Claude for natural language understanding and NRCLex for emotion detection.
-    #     """)
+    st.markdown("Analyze comments to understand emotional reactions and sentiment.")
 
     # Create a cleaner button with center alignment
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
         analyze_btn = st.button("Run Comments Analysis", type="primary", use_container_width=True)
 
     # If button is clicked, run the analysis
@@ -606,11 +593,13 @@ with tab2:
                 st.info("📝 Running in demo mode with sample data. For full functionality, add your Anthropic API key to the .env file.")
 
             # Add expandable section for sample comments
-            with st.expander("View sample comments"):
-                for i in range(min(10, comment_count)):
-                    st.markdown(f"- Sample comment #{i+1}")
-                if comment_count > 10:
-                    st.markdown(f"*...and {comment_count - 10} more*")
+            with st.expander("**View Most Engaging comments**"):
+                st.markdown(f"- i feel like shein bottoms are always so cheeky 😭")
+                st.markdown(f"- shein uses child labor.. whatever floats your boat ig 🤩")
+                st.markdown(f"- SHEIN string/tie swimsuits are the best for girls that need a little extra or a little less")
+                st.markdown(f"- Small top and medium bottom is so realllll")
+                st.markdown(f"- Billabong is having a sale rn and there are some super cute ones!!")
+
 
             # Create a two-column layout for the emotional summary and distribution
             col1, col2 = st.columns(2)
@@ -639,23 +628,28 @@ with tab2:
             st.markdown("---")
 
             # Add a download section
-            st.subheader("Download Results")
+            st.subheader("Share with the Team")
             col1, col2 = st.columns(2)
 
             with col1:
-                # Create a download button for a report (placeholder)
-                st.download_button(
-                    label="Download Summary (PDF)",
-                    data=b"Placeholder for PDF report",  # This would be replaced with actual PDF data
-                    file_name="shein_analysis_summary.pdf",
-                    mime="application/pdf",
-                    disabled=True  # Disabled for now since we don't have actual PDF generation
-                )
+                # Create a download button
+                col1a, col1b = st.columns([1, 10])
+                with col1a:
+                    st.image("./static/slack_logo.png", width=30)
+                with col1b:
+                    st.download_button(
+                        label="Share on Slack",
+                        data=b"Placeholder for PDF report",  # This would be replaced with actual PDF data
+                        file_name="shein_analysis_summary.pdf",
+                        mime="application/pdf",
+                        disabled=True,
+                        use_container_width=True,
+                    )
 
             with col2:
-                # Create a download button for raw data (placeholder)
+                # Create a download button
                 st.download_button(
-                    label="Download Raw Data (CSV)",
+                    label="Send via e-mail",
                     data=b"Placeholder for CSV data",  # This would be replaced with actual CSV data
                     file_name="shein_analysis_data.csv",
                     mime="text/csv",
