@@ -1,9 +1,43 @@
 # Cooper Video Analysis - Streamlit App
 
-A Streamlit-powered web application for analyzing sentiment and emotion in videos using Cooper Video Analysis with AssemblyAI integration.
+> **Demo Implementation of Cooper's Emotional Intelligence Platform**
 
-## Features
+A Streamlit-powered web application for analyzing sentiment and emotion in videos. This demo showcases core elements of Cooper's emotional intelligence capabilities, focusing on audiovisual content analysis as a foundation for our broader vision.
 
+## Company Vision
+
+**Cooper is building the emotional intelligence infrastructure for the AI economy — decoding human emotion across all media formats, and powering the next generation of marketing, customer experience, and entertainment. In a world where AI creates most content, emotional resonance becomes the new battleground — and Cooper is the infrastructure layer making it possible.**
+
+Our technology analyzes multimodal content to extract emotional signals and patterns, providing actionable insights across industries. This demo application represents an initial implementation focused on video analysis, laying groundwork for our comprehensive emotional intelligence infrastructure.
+
+## Future Infrastructure
+
+This demo represents just the beginning. Cooper's future infrastructure will include:
+
+1. **Emotional Intelligence APIs & SDKs**
+   - Integration capabilities for AI apps, platforms, marketing tools, and entertainment products
+   - Examples: AI video editors suggesting emotion-optimized edits, chatbot platforms with emotionally-tuned responses
+
+2. **Emotional Data Graph & Repository**
+   - Building the world's largest emotional intelligence database
+   - Cross-referencing emotional reactions across demographics, cultures, and regions
+   - Creating the essential reference layer for more human-like AI systems
+
+3. **Real-Time Emotional Sentiment Feeds**
+   - Live emotional heatmaps across social platforms, entertainment, and commerce
+   - Enabling dynamic optimization for marketers, studios, and brands
+
+4. **Emotional Content Generation Tools**
+   - Pre-validation of content for emotional impact
+   - Generation of emotionally-tuned scripts, ads, and social content
+
+5. **Emotional Intelligence Standards and Certification**
+   - Establishing industry benchmarks for emotional measurement
+   - Providing certification ("Powered by Cooper Emotional Standards") for AI tools
+
+## Current Demo Features
+
+- **Multimodal Analysis**: Process video content to extract emotional intelligence from both audio and visual components
 - **Web Interface**: Easy-to-use Streamlit interface for video analysis
 - **AssemblyAI Integration**:
   - **Accurate Transcription**: State-of-the-art model for speech-to-text
@@ -67,18 +101,6 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```bash
 pip install -r requirements.txt
 ```
-
-4. Set up your AssemblyAI API key:
-
-```bash
-# Copy the example env file if it exists
-cp .env.example .env
-
-# Or create a new .env file
-echo "ASSEMBLYAI_API_KEY=your_api_key_here" > .env
-```
-
-You can get a free API key with 5 hours of free processing per month at [AssemblyAI](https://www.assemblyai.com/).
 
 ### Running the App Locally
 
@@ -145,34 +167,47 @@ git push
    - Timeline analysis showing emotion and sentiment over time
    - Distribution analysis showing overall scores
 
+## Market Applications
+
+This technology can be applied across multiple industries:
+
+- **Marketing**: Optimize campaign effectiveness and measure emotional brand impact
+- **Entertainment**: Improve audience engagement in movies, games, and streaming content
+- **Customer Experience**: Gauge emotional responses to products, services, and support interactions
+- **Content Creation**: Help creators understand and enhance emotional impact
+- **Education**: Create more emotionally engaging learning experiences
+- **AI Development**: Train more emotionally intelligent AI models and systems
+
 ## Limitations
 
 - **File Size**: The app may struggle with very large video files
 - **Processing Time**: Analysis can take time, especially with longer videos
-- **AssemblyAI API**: Requires internet connectivity; free tier limited to 5 hours per month
 
-## Troubleshooting
 
-If you encounter issues:
+## Development Roadmap
 
-1. Enable "Show Debug Information" in the sidebar
-2. Check the logs for detailed error messages
-3. Ensure your video file is in a supported format
-4. Verify your AssemblyAI API key
+This demo represents our first step. Upcoming developments include:
+
+- Enhanced multimodal analysis combining audio, visual, and textual signals
+- Integration capabilities for third-party platforms via APIs
+- Expanded emotional intelligence database across demographics
+- Real-time processing capabilities for live content analysis
+- Emotional content generation and pre-validation tools
+- Standards development for emotional intelligence measurement
+
 
 ## License
 
-MIT
+2025 Cooper Ltd. All Rights Reserved.
 
-## Credits
-
-- Built with [Streamlit](https://streamlit.io/)
-- Powered by [AssemblyAI](https://www.assemblyai.com/)
+This code is proprietary. No part of this repository may be
+copied, distributed, or used in any form or by any means,
+without the express prior written permission of Cooper Ltd.
 
 ## Setup and Installation
 
 ### Requirements
-- Python 3.8 or higher
+- Python 3.12 or higher
 - pip (Python package installer)
 
 ### Installation
@@ -194,12 +229,6 @@ MIT
    ```
    This step is **essential** as the application uses TextBlob and NRCLex which require specific NLTK corpora.
 
-### Environment Variables
-
-Create a `.env` file in the project root directory with your AssemblyAI API key:
-```
-ASSEMBLYAI_API_KEY=your_api_key_here
-```
 
 ### Running the Application
 
