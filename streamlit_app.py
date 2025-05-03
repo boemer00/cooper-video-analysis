@@ -535,10 +535,35 @@ with tab1:
 
             # --- Emotion Analysis Visualization ---
 
-            # Emotion Transition Network
+            # Emotion Transition Network with options
             st.subheader("Emotion Transition Network")
+
+            # Add controls for the transition network in a row
+            transition_options_col1, transition_options_col2 = st.columns([1, 1])
+
+            with transition_options_col1:
+                normalization = st.selectbox(
+                    "Normalization Method",
+                    options=["row", "column", "global"],
+                    format_func=lambda x: {
+                        "row": "By Source Emotion (Row)",
+                        "column": "By Target Emotion (Column)",
+                        "global": "Global"
+                    }[x],
+                    help="Row: normalize by source emotion; Column: normalize by target emotion; Global: normalize by total transitions"
+                )
+
+            with transition_options_col2:
+                show_raw_counts = st.checkbox(
+                    "Show Raw Counts",
+                    value=False,
+                    help="Display both normalized weights and raw transition counts"
+                )
+
             transition_fig = create_emotion_transition_network_plot(
-                comments=results.comments
+                comments=results.comments,
+                normalization=normalization,
+                show_raw_counts=show_raw_counts
             )
             st.plotly_chart(transition_fig, use_container_width=True)
 

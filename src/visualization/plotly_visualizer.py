@@ -8,6 +8,7 @@ import networkx as nx
 from src.visualization.visualizer import Visualizer
 import plotly.subplots as sp
 from typing import Tuple, Optional
+import plotly.express as px
 
 
 def _prepare_comments_js(raw_comments: list) -> list:
@@ -229,8 +230,21 @@ def create_emotional_contagion_heatmap(
 
 
 def create_emotion_transition_network_plot(
-    comments: list
+    comments: list,
+    normalization: str = 'row',
+    show_raw_counts: bool = False
 ) -> go.Figure:
+    """
+    Create an emotion transition network plot showing normalized edge weights.
+
+    Args:
+        comments: List of comment data
+        normalization: Type of normalization to use ('row', 'column', or 'global')
+        show_raw_counts: Whether to show raw counts alongside normalized weights
+
+    Returns:
+        A Plotly figure showing the emotion transition network
+    """
     comments = _prepare_comments_js(comments)
 
     # Check if we have enough data
@@ -255,7 +269,52 @@ def create_emotion_transition_network_plot(
 
     try:
         vis = Visualizer()
-        trans = vis.compute_emotion_transitions(comments)
+
+        # Get the raw transition counts first
+        df = vis.compute_comment_emotions(comments)
+        df.sort_values('create_time', inplace=True)
+
+        # Count transitions
+        transitions = {}
+        prev = None
+        for emo in df['emotion']:
+            if prev is not None:
+                transitions[(prev, emo)] = transitions.get((prev, emo), 0) + 1
+            prev = emo
+
+        emotions = sorted(df['emotion'].unique())
+        raw_counts = pd.DataFrame(0, index=emotions, columns=emotions, dtype=float)
+
+        for (i, j), count in transitions.items():
+            raw_counts.loc[i, j] = count
+
+        # Create normalized matrix based on selected normalization method
+        if normalization == 'row':
+            # Normalize by source emotion (rows) - default in original function
+            norm_matrix = raw_counts.div(raw_counts.sum(axis=1).replace({0: 1}), axis=0)
+            norm_title = "Row-normalized"
+        elif normalization == 'column':
+            # Normalize by target emotion (columns)
+            norm_matrix = raw_counts.div(raw_counts.sum(axis=0).replace({0: 1}), axis=1)
+            norm_title = "Column-normalized"
+        elif normalization == 'global':
+            # Normalize by total transitions
+            total = raw_counts.sum().sum()
+            if total > 0:
+                norm_matrix = raw_counts / total
+            else:
+                norm_matrix = raw_counts
+            norm_title = "Globally normalized"
+        else:
+            # Default to row normalization if invalid option provided
+            norm_matrix = raw_counts.div(raw_counts.sum(axis=1).replace({0: 1}), axis=0)
+            norm_title = "Row-normalized"
+
+        # Store the raw counts for later use in hover text
+        raw_counts_dict = {(i, j): raw_counts.loc[i, j] for i in emotions for j in emotions if raw_counts.loc[i, j] > 0}
+
+        # Use the normalized matrix for the visualization
+        trans = norm_matrix
 
         # Check if we have valid transitions
         if trans.sum().sum() == 0:
@@ -277,13 +336,19 @@ def create_emotion_transition_network_plot(
             )
             return fig
 
-        # Build NetworkX graph
+        # Build NetworkX graph with both normalized weights and raw counts
         G = nx.DiGraph()
         for src in trans.index:
             for tgt in trans.columns:
                 weight = trans.loc[src, tgt]
                 if weight > 0:
-                    G.add_edge(src.capitalize(), tgt.capitalize(), weight=weight)
+                    raw_count = raw_counts.loc[src, tgt]
+                    G.add_edge(
+                        src.capitalize(),
+                        tgt.capitalize(),
+                        weight=weight,
+                        raw_count=raw_count
+                    )
 
         # Check if we have any edges
         if len(G.edges()) == 0:
@@ -305,21 +370,63 @@ def create_emotion_transition_network_plot(
             return fig
 
         pos = nx.circular_layout(G)
-        edge_x, edge_y = [], []
+
+        # Create a colorscale for edges
+        colorscale = px.colors.sequential.Blues
+
+        # Extract edge weights for color mapping
+        edge_weights = [data['weight'] for _, _, data in G.edges(data=True)]
+        max_weight = max(edge_weights) if edge_weights else 1
+
+        # Create edges with varying colors and widths
+        edge_traces = []
+        annotations = []
+
+        # Compute non-linear scaling for edge widths - emphasize differences
+        def scale_width(w, max_w):
+            # Scale width non-linearly: stronger differences between small and large values
+            return 0.5 + 5 * (w / max_w) ** 0.5
+
         for u, v, data in G.edges(data=True):
             x0, y0 = pos[u]
             x1, y1 = pos[v]
-            edge_x += [x0, x1, None]
-            edge_y += [y0, y1, None]
 
-        edge_trace = go.Scatter(
-            x=edge_x,
-            y=edge_y,
-            line=dict(width=1, color='#888'),
-            hoverinfo='none',
-            mode='lines'
-        )
+            weight = data['weight']
+            raw_count = data['raw_count']
 
+            # Determine color based on normalized weight
+            color_idx = min(int((weight / max_weight) * (len(colorscale) - 1)), len(colorscale) - 1)
+            edge_color = colorscale[color_idx]
+
+            # Scale width non-linearly
+            width = scale_width(weight, max_weight)
+
+            # Create edge trace
+            edge_trace = go.Scatter(
+                x=[x0, x1, None],
+                y=[y0, y1, None],
+                line=dict(width=width, color=edge_color),
+                hoverinfo='text',
+                hovertext=f"From {u} to {v}<br>Probability: {weight:.2f}<br>Count: {int(raw_count)}",
+                mode='lines'
+            )
+            edge_traces.append(edge_trace)
+
+            # Create annotation for the edge
+            if show_raw_counts:
+                label_text = f"{weight:.2f} ({int(raw_count)})"
+            else:
+                label_text = f"{weight:.2f}"
+
+            annotations.append(dict(
+                x=(x0 + x1) / 2,
+                y=(y0 + y1) / 2,
+                text=label_text,
+                showarrow=False,
+                font=dict(size=8, color='black')
+            ))
+
+        # Create node trace
         node_x = [pos[n][0] for n in G.nodes()]
         node_y = [pos[n][1] for n in G.nodes()]
         node_trace = go.Scatter(
@@ -332,26 +439,49 @@ def create_emotion_transition_network_plot(
             hoverinfo='text'
         )
 
-        fig = go.Figure(data=[edge_trace, node_trace])
+        # Create figure with all traces
+        fig = go.Figure(data=edge_traces + [node_trace])
+
+        # Add a subtitle explaining the normalization
+        title = f'Emotion Transition Network<br><span style="font-size:12px">({norm_title} transition probabilities)</span>'
+
+        # Add a colorbar legend for edge weights
+        fig.add_trace(go.Scatter(
+            x=[None],
+            y=[None],
+            mode='markers',
+            marker=dict(
+                colorscale=colorscale,
+                showscale=True,
+                cmin=0,
+                cmax=max_weight,
+                colorbar=dict(
+                    title="Transition<br>Probability",
+                    titleside="right",
+                    thickness=15,
+                    len=0.5,
+                    y=0.5,
+                    yanchor="middle"
+                )
+            ),
+            hoverinfo='none',
+            showlegend=False
+        ))
+
+        # Update layout
         fig.update_layout(
-            title='Emotion Transition Network',
+            title=title,
             showlegend=False,
             template='plotly_white',
             xaxis=dict(showgrid=False, zeroline=False, visible=False),
-            yaxis=dict(showgrid=False, zeroline=False, visible=False)
+            yaxis=dict(showgrid=False, zeroline=False, visible=False),
+            height=600,  # Increase height to accommodate colorbar
+            margin=dict(t=100)  # Add more margin at top for subtitle
         )
 
-        # annotate edge weights
-        for u, v, data in G.edges(data=True):
-            x0, y0 = pos[u]
-            x1, y1 = pos[v]
-            fig.add_annotation(
-                x=(x0 + x1) / 2,
-                y=(y0 + y1) / 2,
-                text=f"{data['weight']:.2f}",
-                showarrow=False,
-                font=dict(size=8, color='#000')
-            )
+        # Add edge weight annotations
+        for annotation in annotations:
+            fig.add_annotation(annotation)
 
         return fig
     except Exception as e:
