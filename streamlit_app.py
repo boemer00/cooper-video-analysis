@@ -567,6 +567,37 @@ with tab1:
             )
             st.plotly_chart(transition_fig, use_container_width=True)
 
+            # Add explanation section below the network plot
+            with st.expander("📊 How to Interpret the Emotion Transition Network", expanded=True):
+                explanation_col1, explanation_col2 = st.columns([1, 1])
+
+                with explanation_col1:
+                    st.markdown("""
+                    ### Understanding Emotion Transitions
+
+                    This video has triggered the following emotional transitions:
+                    - **Surprise** is more likely to happen when users feel **trust** towards the person on the video.
+                    - **Anger** can lead to dead ends and no further engagement.
+                    """)
+
+                with explanation_col2:
+                    st.markdown("""
+                    ### Using This for Content Strategy
+
+                    This visualization can inform your content strategy in several ways:
+
+                    - **Identify emotional journeys**: Map the path your audience takes from one emotion to another.
+                    - **Target emotional arcs**: Structure content to guide viewers through effective emotional sequences.
+                    - **Maintain engagement**: Use strong transition pathways to keep viewers emotionally engaged.
+                    - **Adjust normalization**: Different normalization methods show different perspectives on the same data.
+                    """)
+
+                st.markdown("""
+                #### Emotional Flow Design
+                """)
+                st.info("💡 Create a clear path from **Neutral → Trust → Surprise**, which suggests neutral content can effectively lead to trust building, followed by surprise. This could be leveraged in storytelling arcs for your next posts, videos, or ads.")
+
+
 with tab2:
     # st.markdown("<h2 style='color: #ff7557; font-weight: bold;'>Shein Comments Emotional Analysis</h2>", unsafe_allow_html=True)
     st.markdown("Analyze comments to understand emotional reactions and sentiment.")
